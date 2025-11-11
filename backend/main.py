@@ -105,7 +105,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://webapp-expense.onrender.com"  
+        "https://webapp-expense.vercel.app/"
     ],
     allow_credentials=True,
     allow_methods=["*"],
