@@ -103,11 +103,15 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,        # specify allowed origins
+    allow_origins=[
+        "http://localhost:5173",
+        "https://webapp-expense.onrender.com"  
+    ],
     allow_credentials=True,
-    allow_methods=["*"],          # allow all methods (GET, POST, PUT, DELETE)
-    allow_headers=["*"],          # allow all headers (Authorization, Content-Type, etc.)
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 # Database dependency
 def get_db():
     db = SessionLocal()
