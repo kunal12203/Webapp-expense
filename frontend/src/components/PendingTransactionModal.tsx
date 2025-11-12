@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { getPendingTransaction, confirmPendingTransaction, cancelPendingTransaction } from "../services/api";
+import { useSearchParams } from "react-router-dom";
+import {
+  getPendingTransaction,
+  confirmPendingTransaction,
+  cancelPendingTransaction,
+} from "../services/api";
 import { X, Check, Trash2 } from "lucide-react";
 
 interface Props {
@@ -7,7 +12,14 @@ interface Props {
   onClose: () => void;
 }
 
-const categories = ["Food", "Transport", "Shopping", "Bills", "Entertainment", "Other"];
+const categories = [
+  "Food",
+  "Transport",
+  "Shopping",
+  "Bills",
+  "Entertainment",
+  "Other",
+];
 
 export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => {
   const [amount, setAmount] = useState("");
@@ -17,31 +29,37 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
   const [type, setType] = useState<"expense" | "income">("expense");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Get pre-filled data from URL params
-    const urlAmount = sessionStorage.getItem('pendingAmount');
-    const urlNote = sessionStorage.getItem('pendingNote');
-    
-    if (urlAmount) setAmount(urlAmount);
-    if (urlNote) setDescription(urlNote);
-    
-    // Clear session storage
-    sessionStorage.removeItem('pendingAmount');
-    sessionStorage.removeItem('pendingNote');
-  }, []);
+    // ✅ Pre-fill from URL query params
+    const queryAmount = searchParams.get("amount");
+    const queryNote = searchParams.get("note");
+
+    if (queryAmount) setAmount(queryAmount);
+    if (queryNote) setDescription(queryNote);
+  }, [searchParams]);
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+
     try {
-      await confirmPendingTransaction(token, parseFloat(amount), category, description, date, type);
+      await confirmPendingTransaction(
+        token,
+        parseFloat(amount),
+        category,
+        description,
+        date,
+        type
+      );
       alert("Transaction added successfully!");
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to confirm transaction");
+      setError(
+        err instanceof Error ? err.message : "Failed to confirm transaction"
+      );
     } finally {
       setLoading(false);
     }
@@ -49,7 +67,7 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
 
   const handleCancel = async () => {
     if (!window.confirm("Cancel this transaction?")) return;
-    
+
     try {
       await cancelPendingTransaction(token);
       onClose();
@@ -108,9 +126,15 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
 
           <div>
             <label className="block text-sm font-medium mb-2">Category</label>
-            <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <select
+              className="input"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
               {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
             </select>
           </div>
