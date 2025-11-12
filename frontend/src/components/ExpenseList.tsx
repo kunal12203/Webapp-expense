@@ -1,5 +1,6 @@
 import React from "react";
 import { Expense } from "../types";
+import { Edit2, Trash2, Package } from "lucide-react";
 
 interface ExpenseListProps {
   expenses: Expense[];
@@ -7,83 +8,137 @@ interface ExpenseListProps {
   onDelete: (id: number) => void;
 }
 
-export const ExpenseList: React.FC<ExpenseListProps> = ({
-  expenses,
-  onEdit,
-  onDelete,
-}) => {
+const categoryIcons: Record<string, string> = {
+  Food: "🍔",
+  Transport: "🚗",
+  Shopping: "🛍️",
+  Bills: "📄",
+  Entertainment: "🎬",
+  Other: "📦",
+};
+
+export const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, onEdit, onDelete }) => {
   const formatINR = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   if (expenses.length === 0) {
     return (
-      <div className="card text-center text-gray-500 dark:text-gray-400">
-        No transactions yet. Click <b>“Add Transaction”</b> to start tracking.
+      <div className="glass-card p-12 text-center animate-slide-up">
+        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
+          <Package className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+        </div>
+        <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">
+          No Transactions Yet
+        </h3>
+        <p className="text-gray-500 dark:text-gray-400">
+          Click <b>"Add Transaction"</b> to start tracking your finances
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="card overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-          <tr>
-            <th className="p-3">Date</th>
-            <th className="p-3">Description</th>
-            <th className="p-3">Category</th>
-            <th className="p-3">Type</th>
-            <th className="p-3 text-right">Amount</th>
-            <th className="p-3 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {expenses.map((expense) => (
-            <tr
-              key={expense.id}
-              className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-            >
-              <td className="p-3">{expense.date}</td>
-              <td className="p-3">{expense.description}</td>
-              <td className="p-3">{expense.category}</td>
-              <td className="p-3">
-                <span
-                  className={`px-2 py-1 rounded text-sm font-medium ${
-                    expense.type === "income"
-                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                      : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                  }`}
-                >
-                  {expense.type}
-                </span>
-              </td>
-              <td
-                className={`p-3 text-right font-semibold ${
-                  expense.type === "income"
-                    ? "text-green-600 dark:text-green-300"
-                    : "text-red-600 dark:text-red-300"
-                }`}
-              >
-                {expense.type === "income" ? "+" : "-"}
-                {formatINR(expense.amount)}
-              </td>
-              <td className="p-3 text-center">
-                <button
-                  onClick={() => onEdit(expense)}
-                  className="btn bg-yellow-400 hover:bg-yellow-500 text-white mr-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => onDelete(expense.id)}
-                  className="btn btn-danger"
-                >
-                  Delete
-                </button>
-              </td>
+    <div className="glass-card overflow-hidden animate-slide-up">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-gray-700">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Date
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Description
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Category
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Amount
+              </th>
+              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {expenses.map((expense, index) => (
+              <tr
+                key={expense.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  {formatDate(expense.date)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 font-medium">
+                  {expense.description}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                    <span>{categoryIcons[expense.category]}</span>
+                    {expense.category}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`badge ${
+                      expense.type === "income" ? "badge-income" : "badge-expense"
+                    }`}
+                  >
+                    {expense.type === "income" ? "💰" : "💸"} {expense.type}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <span
+                    className={`text-sm font-bold ${
+                      expense.type === "income"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {expense.type === "income" ? "+" : "-"}
+                    {formatINR(expense.amount)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => onEdit(expense)}
+                      className="p-2 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 transition-colors duration-200"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(expense.id)}
+                      className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors duration-200"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
