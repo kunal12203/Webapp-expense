@@ -190,17 +190,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 # Routes
 @app.get("/")
+@app.get("/api")
 def root():
     return {"status": "ok", "message": "Expense Tracker API running"}
 
-
+# Signup/Login
 @app.post("/signup", response_model=Token)
 @app.post("/api/signup", response_model=Token)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == user.username).first():
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="Username exists")
     if db.query(User).filter(User.email == user.email).first():
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(status_code=400, detail="Email exists")
 
     hashed_pw = get_password_hash(user.password)
     db_user = User(username=user.username, email=user.email, hashed_password=hashed_pw)
@@ -210,125 +211,94 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     token = create_access_token({"sub": db_user.username})
     return {"access_token": token, "token_type": "bearer"}
 
-
 @app.post("/login", response_model=Token)
 @app.post("/api/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token({"sub": db_user.username})
     return {"access_token": token, "token_type": "bearer"}
 
-
-# Expense CRUD
+# Expenses
+@app.get("/expenses", response_model=List[ExpenseResponse])
 @app.get("/api/expenses", response_model=List[ExpenseResponse])
 def get_expenses(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     expenses = db.query(Expense).filter(Expense.user_id == current_user.id).order_by(Expense.date.desc()).all()
     return [
         ExpenseResponse(
-            id=e.id,
-            user_id=e.user_id,
-            amount=e.amount,
-            category=e.category,
-            description=e.description,
-            date=e.date.strftime("%Y-%m-%d"),
-            type=e.type,
-        )
-        for e in expenses
+            id=e.id, user_id=e.user_id, amount=e.amount, category=e.category,
+            description=e.description, date=e.date.strftime("%Y-%m-%d"), type=e.type
+        ) for e in expenses
     ]
 
-
+@app.post("/expenses", response_model=ExpenseResponse)
 @app.post("/api/expenses", response_model=ExpenseResponse)
 def create_expense(expense: ExpenseCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     date_obj = datetime.strptime(expense.date, "%Y-%m-%d").date()
     new_expense = Expense(
-        user_id=current_user.id,
-        amount=expense.amount,
-        category=expense.category,
-        description=expense.description,
-        date=date_obj,
-        type=expense.type,
+        user_id=current_user.id, amount=expense.amount, category=expense.category,
+        description=expense.description, date=date_obj, type=expense.type,
     )
     db.add(new_expense)
     db.commit()
     db.refresh(new_expense)
     return new_expense
 
-
+@app.put("/expenses/{expense_id}", response_model=ExpenseResponse)
 @app.put("/api/expenses/{expense_id}", response_model=ExpenseResponse)
 def update_expense(expense_id: int, updated: ExpenseUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense:
-        raise HTTPException(status_code=404, detail="Expense not found")
-
+    if not expense: raise HTTPException(status_code=404, detail="Expense not found")
     if updated.amount: expense.amount = updated.amount
     if updated.category: expense.category = updated.category
     if updated.description: expense.description = updated.description
     if updated.date: expense.date = datetime.strptime(updated.date, "%Y-%m-%d").date()
     if updated.type: expense.type = updated.type
-
-    db.commit()
-    db.refresh(expense)
+    db.commit(); db.refresh(expense)
     return expense
 
-
+@app.delete("/expenses/{expense_id}")
 @app.delete("/api/expenses/{expense_id}")
 def delete_expense(expense_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense:
-        raise HTTPException(status_code=404, detail="Expense not found")
-    db.delete(expense)
-    db.commit()
+    if not expense: raise HTTPException(status_code=404, detail="Expense not found")
+    db.delete(expense); db.commit()
     return {"message": "Expense deleted"}
 
-
 # Pending Transactions
+@app.post("/generate-url")
 @app.post("/api/generate-url")
 def generate_payment_url(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     token = token_urlsafe(16)
     pending = PendingTransaction(user_id=current_user.id, token=token, created_at=datetime.utcnow().date())
-    db.add(pending)
-    db.commit()
-    db.refresh(pending)
+    db.add(pending); db.commit(); db.refresh(pending)
     base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return {"url": f"{base_url}/add-expense/{token}", "token": token}
 
-
+@app.get("/pending-transaction/{token}", response_model=PendingTransactionResponse)
 @app.get("/api/pending-transaction/{token}", response_model=PendingTransactionResponse)
 def get_pending_transaction(token: str, db: Session = Depends(get_db)):
     pending = db.query(PendingTransaction).filter(PendingTransaction.token == token).first()
-    if not pending:
-        raise HTTPException(status_code=404, detail="Invalid token")
+    if not pending: raise HTTPException(status_code=404, detail="Invalid token")
     return pending
 
-
+@app.post("/confirm-pending/{token}")
 @app.post("/api/confirm-pending/{token}")
 def confirm_pending_transaction(token: str, expense: ExpenseCreate, db: Session = Depends(get_db)):
     pending = db.query(PendingTransaction).filter(PendingTransaction.token == token).first()
     if not pending or pending.status != "pending":
-        raise HTTPException(status_code=400, detail="Invalid or already processed token")
-
+        raise HTTPException(status_code=400, detail="Invalid or processed token")
     expense_date = datetime.strptime(expense.date, "%Y-%m-%d").date()
-    new_expense = Expense(
-        user_id=pending.user_id,
-        amount=expense.amount,
-        category=expense.category,
-        description=expense.description,
-        date=expense_date,
-        type=expense.type,
-    )
-    db.add(new_expense)
-    pending.status = "confirmed"
-    db.commit()
+    new_expense = Expense(user_id=pending.user_id, amount=expense.amount, category=expense.category,
+                          description=expense.description, date=expense_date, type=expense.type)
+    db.add(new_expense); pending.status = "confirmed"; db.commit()
     return {"message": "Transaction confirmed"}
 
-
+@app.delete("/cancel-pending/{token}")
 @app.delete("/api/cancel-pending/{token}")
 def cancel_pending_transaction(token: str, db: Session = Depends(get_db)):
     pending = db.query(PendingTransaction).filter(PendingTransaction.token == token).first()
-    if not pending:
-        raise HTTPException(status_code=404, detail="Invalid token")
-    pending.status = "cancelled"
-    db.commit()
+    if not pending: raise HTTPException(status_code=404, detail="Invalid token")
+    pending.status = "cancelled"; db.commit()
     return {"message": "Transaction cancelled"}
