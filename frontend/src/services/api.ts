@@ -1,7 +1,8 @@
-// frontend/src/services/api.ts
+import { config } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = config.apiUrl;
 
+// Rest of your code stays the same...
 interface TokenResponse {
   access_token: string;
   token_type: string;

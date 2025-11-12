@@ -1,39 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import { Dashboard } from './components/Dashboard';
 import { PendingTransactionModal } from './components/PendingTransactionModal';
 import { signup, login } from './services/api';
 
-type Page = 'login' | 'signup' | 'dashboard' | 'pending';
-
-function App() {
-  const [page, setPage] = useState<Page>('login');
+function AppContent() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [error, setError] = useState('');
-  const [pendingToken, setPendingToken] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    // Check if URL contains pending transaction token
-    const path = window.location.pathname;
-    const match = path.match(/\/add-expense\/([^/]+)/);
-    
-    if (match) {
-      const urlToken = match[1];
-      const urlParams = new URLSearchParams(window.location.search);
-      const amount = urlParams.get('amount');
-      const note = urlParams.get('note');
-      
-      setPendingToken(urlToken);
-      setPage('pending');
-      
-      // Store amount and note if provided
-      if (amount) sessionStorage.setItem('pendingAmount', amount);
-      if (note) sessionStorage.setItem('pendingNote', note);
-    } else if (token) {
-      setPage('dashboard');
-    }
-  }, [token]);
+  const navigate = useNavigate();
 
   const handleSignup = async (username: string, email: string, password: string) => {
     setError('');
@@ -41,6 +17,7 @@ function App() {
       const data = await signup(username, email, password);
       localStorage.setItem('token', data.access_token);
       setToken(data.access_token);
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
     }
@@ -52,6 +29,7 @@ function App() {
       const data = await login(username, password);
       localStorage.setItem('token', data.access_token);
       setToken(data.access_token);
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
@@ -60,44 +38,46 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     setToken(null);
-    setPage('login');
+    navigate('/login');
   };
 
-  const handlePendingClose = () => {
-    setPendingToken(null);
-    window.history.pushState({}, '', '/');
-    setPage('login');
-  };
+  return (
+    <Routes>
+      <Route path="/" element={
+        token ? <Dashboard token={token} onLogout={handleLogout} /> : <Login onLogin={handleLogin} onSwitchToSignup={() => navigate('/signup')} error={error} />
+      } />
+      <Route path="/login" element={<Login onLogin={handleLogin} onSwitchToSignup={() => navigate('/signup')} error={error} />} />
+      <Route path="/signup" element={<Signup onSignup={handleSignup} onSwitchToLogin={() => navigate('/login')} error={error} />} />
+      <Route path="/dashboard" element={
+        token ? <Dashboard token={token} onLogout={handleLogout} /> : <Login onLogin={handleLogin} onSwitchToSignup={() => navigate('/signup')} error={error} />
+      } />
+      <Route path="/add-expense/:token" element={<PendingExpensePage />} />
+    </Routes>
+  );
+}
 
-  if (page === 'pending' && pendingToken) {
-    return (
-      <PendingTransactionModal
-        token={pendingToken}
-        onClose={handlePendingClose}
-      />
-    );
-  }
+function PendingExpensePage() {
+  const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
 
-  if (page === 'dashboard' && token) {
-    return <Dashboard token={token} onLogout={handleLogout} />;
-  }
-
-  if (page === 'signup') {
-    return (
-      <Signup
-        onSignup={handleSignup}
-        onSwitchToLogin={() => setPage('login')}
-        error={error}
-      />
-    );
+  if (!token) {
+    navigate('/login');
+    return null;
   }
 
   return (
-    <Login
-      onLogin={handleLogin}
-      onSwitchToSignup={() => setPage('signup')}
-      error={error}
+    <PendingTransactionModal
+      token={token}
+      onClose={() => navigate('/login')}
     />
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
 

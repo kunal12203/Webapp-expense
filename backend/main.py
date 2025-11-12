@@ -18,15 +18,17 @@ import os
 load_dotenv()
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-PLEASE")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expense_tracker.db")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+# Fix for Render/Supabase postgres:// vs postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Database
+# Create engine based on database type
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
@@ -39,14 +41,13 @@ Base = declarative_base()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-# Models
+# Database Models
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True)
-    email = Column(String, unique=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-
 
 class Expense(Base):
     __tablename__ = "expenses"
@@ -56,8 +57,7 @@ class Expense(Base):
     category = Column(String)
     description = Column(String)
     date = Column(Date)
-    type = Column(String)
-
+    type = Column(String)  # 'expense' or 'income'
 
 class PendingTransaction(Base):
     __tablename__ = "pending_transactions"
@@ -67,43 +67,38 @@ class PendingTransaction(Base):
     amount = Column(Float, nullable=True)
     note = Column(String, nullable=True)
     created_at = Column(Date)
-    status = Column(String, default="pending")
+    status = Column(String, default="pending")  # pending, confirmed, cancelled
 
-
+# Create tables
 Base.metadata.create_all(bind=engine)
 
-# Schemas
+# Pydantic models
 class UserCreate(BaseModel):
     username: str
     email: str
     password: str
 
-
 class UserLogin(BaseModel):
     username: str
     password: str
-
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-
 class ExpenseCreate(BaseModel):
     amount: float
     category: str
     description: str
-    date: str
-    type: str
-
+    date: str  # YYYY-MM-DD format
+    type: str  # 'expense' or 'income'
 
 class ExpenseUpdate(BaseModel):
-    amount: Optional[float]
-    category: Optional[str]
-    description: Optional[str]
-    date: Optional[str]
-    type: Optional[str]
-
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
+    type: Optional[str] = None
 
 class ExpenseResponse(BaseModel):
     id: int
@@ -117,36 +112,42 @@ class ExpenseResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class PendingTransactionResponse(BaseModel):
     id: int
     token: str
     amount: Optional[float]
     note: Optional[str]
     status: str
-
+    
     class Config:
         from_attributes = True
 
+# App initialization
+app = FastAPI(title="Expense Tracker API", version="2.0.0")
 
-# FastAPI app setup
-app = FastAPI()
-
-origins = [
+# CORS - Allow your frontend domains
+allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://webapp-expense.vercel.app",
-    "https://*.vercel.app",
 ]
+
+# Add production frontend URL if set
+if FRONTEND_URL and FRONTEND_URL not in allowed_origins:
+    allowed_origins.append(FRONTEND_URL)
+
+# Add wildcard for Vercel preview deployments
+if any("vercel.app" in origin for origin in allowed_origins):
+    allowed_origins.append("https://*.vercel.app")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Utility
+# Database dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -154,151 +155,334 @@ def get_db():
     finally:
         db.close()
 
+# Helper functions
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    sha256 = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+    return pwd_context.verify(sha256, hashed_password)
 
-def get_password_hash(password):
-    sha = hashlib.sha256(password.encode()).hexdigest()
-    return pwd_context.hash(sha)
-
-
-def verify_password(plain, hashed):
-    sha = hashlib.sha256(plain.encode()).hexdigest()
-    return pwd_context.verify(sha, hashed)
-
+def get_password_hash(password: str) -> str:
+    sha256 = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return pwd_context.hash(sha256)
 
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
+        username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
+    
     user = db.query(User).filter(User.username == username).first()
-    if not user:
+    if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return user
-
 
 # Routes
 @app.get("/")
 @app.get("/api")
 def root():
-    return {"status": "ok", "message": "Expense Tracker API running"}
+    return {
+        "message": "Expense Tracker API",
+        "version": "2.0.0",
+        "database": "PostgreSQL" if not DATABASE_URL.startswith("sqlite") else "SQLite",
+        "status": "running"
+    }
 
-# Signup/Login
-@app.post("/signup", response_model=Token)
+# Authentication endpoints
 @app.post("/api/signup", response_model=Token)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
+    # Check username
     if db.query(User).filter(User.username == user.username).first():
-        raise HTTPException(status_code=400, detail="Username exists")
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    # Check email
     if db.query(User).filter(User.email == user.email).first():
-        raise HTTPException(status_code=400, detail="Email exists")
-
-    hashed_pw = get_password_hash(user.password)
-    db_user = User(username=user.username, email=user.email, hashed_password=hashed_pw)
-    db.add(db_user)
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    hashed_password = get_password_hash(user.password)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password
+    )
+    db.add(new_user)
     db.commit()
-    db.refresh(db_user)
-    token = create_access_token({"sub": db_user.username})
-    return {"access_token": token, "token_type": "bearer"}
+    db.refresh(new_user)
+    
+    # Generate token
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/login", response_model=Token)
 @app.post("/api/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_access_token({"sub": db_user.username})
-    return {"access_token": token, "token_type": "bearer"}
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-# Expenses
-@app.get("/expenses", response_model=List[ExpenseResponse])
-@app.get("/api/expenses", response_model=List[ExpenseResponse])
-def get_expenses(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    expenses = db.query(Expense).filter(Expense.user_id == current_user.id).order_by(Expense.date.desc()).all()
-    return [
-        ExpenseResponse(
-            id=e.id, user_id=e.user_id, amount=e.amount, category=e.category,
-            description=e.description, date=e.date.strftime("%Y-%m-%d"), type=e.type
-        ) for e in expenses
-    ]
+@app.get("/api/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email
+    }
 
-@app.post("/expenses", response_model=ExpenseResponse)
+# Expense endpoints
 @app.post("/api/expenses", response_model=ExpenseResponse)
-def create_expense(expense: ExpenseCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    date_obj = datetime.strptime(expense.date, "%Y-%m-%d").date()
+def create_expense(
+    expense: ExpenseCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        expense_date = datetime.strptime(expense.date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    if expense.type not in ["expense", "income"]:
+        raise HTTPException(status_code=400, detail="Type must be 'expense' or 'income'")
+    
     new_expense = Expense(
-        user_id=current_user.id, amount=expense.amount, category=expense.category,
-        description=expense.description, date=date_obj, type=expense.type,
+        user_id=current_user.id,
+        amount=expense.amount,
+        category=expense.category,
+        description=expense.description,
+        date=expense_date,
+        type=expense.type
     )
     db.add(new_expense)
     db.commit()
     db.refresh(new_expense)
-    return new_expense
+    
+    return ExpenseResponse(
+        id=new_expense.id,
+        user_id=new_expense.user_id,
+        amount=new_expense.amount,
+        category=new_expense.category,
+        description=new_expense.description,
+        date=new_expense.date.strftime("%Y-%m-%d"),
+        type=new_expense.type
+    )
 
-@app.put("/expenses/{expense_id}", response_model=ExpenseResponse)
+@app.get("/api/expenses", response_model=List[ExpenseResponse])
+def get_expenses(
+    category: Optional[str] = None,
+    type: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Expense).filter(Expense.user_id == current_user.id)
+    
+    if category:
+        query = query.filter(Expense.category == category)
+    if type:
+        query = query.filter(Expense.type == type)
+    
+    expenses = query.order_by(Expense.date.desc()).all()
+    
+    return [
+        ExpenseResponse(
+            id=exp.id,
+            user_id=exp.user_id,
+            amount=exp.amount,
+            category=exp.category,
+            description=exp.description,
+            date=exp.date.strftime("%Y-%m-%d"),
+            type=exp.type
+        )
+        for exp in expenses
+    ]
+
+@app.get("/api/expenses/{expense_id}", response_model=ExpenseResponse)
+def get_expense(
+    expense_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.user_id == current_user.id
+    ).first()
+    
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    return ExpenseResponse(
+        id=expense.id,
+        user_id=expense.user_id,
+        amount=expense.amount,
+        category=expense.category,
+        description=expense.description,
+        date=expense.date.strftime("%Y-%m-%d"),
+        type=expense.type
+    )
+
 @app.put("/api/expenses/{expense_id}", response_model=ExpenseResponse)
-def update_expense(expense_id: int, updated: ExpenseUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense: raise HTTPException(status_code=404, detail="Expense not found")
-    if updated.amount: expense.amount = updated.amount
-    if updated.category: expense.category = updated.category
-    if updated.description: expense.description = updated.description
-    if updated.date: expense.date = datetime.strptime(updated.date, "%Y-%m-%d").date()
-    if updated.type: expense.type = updated.type
-    db.commit(); db.refresh(expense)
-    return expense
+def update_expense(
+    expense_id: int,
+    expense_update: ExpenseUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.user_id == current_user.id
+    ).first()
+    
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    # Update fields
+    if expense_update.amount is not None:
+        expense.amount = expense_update.amount
+    if expense_update.category is not None:
+        expense.category = expense_update.category
+    if expense_update.description is not None:
+        expense.description = expense_update.description
+    if expense_update.date is not None:
+        try:
+            expense.date = datetime.strptime(expense_update.date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+    if expense_update.type is not None:
+        if expense_update.type not in ["expense", "income"]:
+            raise HTTPException(status_code=400, detail="Type must be 'expense' or 'income'")
+        expense.type = expense_update.type
+    
+    db.commit()
+    db.refresh(expense)
+    
+    return ExpenseResponse(
+        id=expense.id,
+        user_id=expense.user_id,
+        amount=expense.amount,
+        category=expense.category,
+        description=expense.description,
+        date=expense.date.strftime("%Y-%m-%d"),
+        type=expense.type
+    )
 
-@app.delete("/expenses/{expense_id}")
 @app.delete("/api/expenses/{expense_id}")
-def delete_expense(expense_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense: raise HTTPException(status_code=404, detail="Expense not found")
-    db.delete(expense); db.commit()
-    return {"message": "Expense deleted"}
+def delete_expense(
+    expense_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.user_id == current_user.id
+    ).first()
+    
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    db.delete(expense)
+    db.commit()
+    
+    return {"message": "Expense deleted successfully"}
 
-# Pending Transactions
-@app.post("/generate-url")
+# Pending Transaction endpoints (for personalized URL feature)
 @app.post("/api/generate-url")
-def generate_payment_url(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def generate_payment_url(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     token = token_urlsafe(16)
-    pending = PendingTransaction(user_id=current_user.id, token=token, created_at=datetime.utcnow().date())
-    db.add(pending); db.commit(); db.refresh(pending)
-    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    return {"url": f"{base_url}/add-expense/{token}", "token": token}
+    pending = PendingTransaction(
+        user_id=current_user.id,
+        token=token,
+        created_at=datetime.utcnow().date()
+    )
+    db.add(pending)
+    db.commit()
+    db.refresh(pending)
+    
+    return {
+        "url": f"{FRONTEND_URL}/add-expense/{token}",
+        "token": token
+    }
 
-@app.get("/pending-transaction/{token}", response_model=PendingTransactionResponse)
 @app.get("/api/pending-transaction/{token}", response_model=PendingTransactionResponse)
 def get_pending_transaction(token: str, db: Session = Depends(get_db)):
-    pending = db.query(PendingTransaction).filter(PendingTransaction.token == token).first()
-    if not pending: raise HTTPException(status_code=404, detail="Invalid token")
-    return pending
+    pending = db.query(PendingTransaction).filter(
+        PendingTransaction.token == token
+    ).first()
+    
+    if not pending:
+        raise HTTPException(status_code=404, detail="Invalid token")
+    
+    return PendingTransactionResponse(
+        id=pending.id,
+        token=pending.token,
+        amount=pending.amount,
+        note=pending.note,
+        status=pending.status
+    )
 
-@app.post("/confirm-pending/{token}")
 @app.post("/api/confirm-pending/{token}")
-def confirm_pending_transaction(token: str, expense: ExpenseCreate, db: Session = Depends(get_db)):
-    pending = db.query(PendingTransaction).filter(PendingTransaction.token == token).first()
-    if not pending or pending.status != "pending":
-        raise HTTPException(status_code=400, detail="Invalid or processed token")
-    expense_date = datetime.strptime(expense.date, "%Y-%m-%d").date()
-    new_expense = Expense(user_id=pending.user_id, amount=expense.amount, category=expense.category,
-                          description=expense.description, date=expense_date, type=expense.type)
-    db.add(new_expense); pending.status = "confirmed"; db.commit()
-    return {"message": "Transaction confirmed"}
+def confirm_pending_transaction(
+    token: str,
+    expense: ExpenseCreate,
+    db: Session = Depends(get_db)
+):
+    pending = db.query(PendingTransaction).filter(
+        PendingTransaction.token == token
+    ).first()
+    
+    if not pending:
+        raise HTTPException(status_code=404, detail="Invalid token")
+    
+    if pending.status != "pending":
+        raise HTTPException(status_code=400, detail="Token already processed")
+    
+    # Create expense for the user who generated the URL
+    try:
+        expense_date = datetime.strptime(expense.date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    
+    new_expense = Expense(
+        user_id=pending.user_id,
+        amount=expense.amount,
+        category=expense.category,
+        description=expense.description,
+        date=expense_date,
+        type=expense.type
+    )
+    db.add(new_expense)
+    
+    # Mark as confirmed
+    pending.status = "confirmed"
+    db.commit()
+    
+    return {"message": "Transaction confirmed successfully"}
 
-@app.delete("/cancel-pending/{token}")
 @app.delete("/api/cancel-pending/{token}")
 def cancel_pending_transaction(token: str, db: Session = Depends(get_db)):
-    pending = db.query(PendingTransaction).filter(PendingTransaction.token == token).first()
-    if not pending: raise HTTPException(status_code=404, detail="Invalid token")
-    pending.status = "cancelled"; db.commit()
+    pending = db.query(PendingTransaction).filter(
+        PendingTransaction.token == token
+    ).first()
+    
+    if not pending:
+        raise HTTPException(status_code=404, detail="Invalid token")
+    
+    pending.status = "cancelled"
+    db.commit()
+    
     return {"message": "Transaction cancelled"}
