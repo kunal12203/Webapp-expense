@@ -1,123 +1,57 @@
-import { config } from '../config';
+import axios from "axios";
 
-const API_URL = config.apiUrl;
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 
-// Rest of your code stays the same...
-interface TokenResponse {
-  access_token: string;
-  token_type: string;
-}
+// Create axios instance
+const api = axios.create({
+  baseURL: API_URL,
+});
 
+// -------------------------
+// AUTH
+// -------------------------
+export const signup = async (username: string, email: string, password: string) => {
+  const res = await api.post("/signup", { username, email, password });
+  return res.data;
+};
 
-export async function generatePaymentUrl(token: string) {
-  const response = await fetch(`${API_URL}/generate-url`, {
-    method: "POST",
+export const login = async (username: string, password: string) => {
+  const res = await api.post("/token", { username, password });
+  return res.data;
+};
+
+// -------------------------
+// EXPENSE CRUD
+// -------------------------
+export const getExpenses = async (
+  token: string,
+  category?: string,
+  type?: string
+) => {
+  const res = await api.get("/expenses", {
     headers: { Authorization: `Bearer ${token}` },
+    params: { category, type },
   });
-  
-  if (!response.ok) throw new Error("Failed to generate URL");
-  return response.json();
-}
+  return res.data;
+};
 
-export async function getPendingTransaction(token: string) {
-  const response = await fetch(`${API_URL}/pending-transaction/${token}`);
-  if (!response.ok) throw new Error("Failed to fetch pending transaction");
-  return response.json();
-}
-
-export async function confirmPendingTransaction(
+export const createExpense = async (
   token: string,
   amount: number,
   category: string,
   description: string,
   date: string,
   type: string
-) {
-  const response = await fetch(`${API_URL}/confirm-pending/${token}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    // Remove Authorization header
-    body: JSON.stringify({ amount, category, description, date, type }),
-  });
-  
-  if (!response.ok) throw new Error("Failed to confirm transaction");
-  return response.json();
-}
+) => {
+  const res = await api.post(
+    "/expenses",
+    { amount, category, description, date, type },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+};
 
-export async function cancelPendingTransaction(token: string) {
-  const response = await fetch(`${API_URL}/cancel-pending/${token}`, {
-    method: "DELETE",
-  });
-  
-  if (!response.ok) throw new Error("Failed to cancel transaction");
-  return response.json();
-}
-
-export async function signup(username: string, email: string, password: string): Promise<TokenResponse> {
-  const response = await fetch(`${API_URL}/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, email, password }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.detail || "Signup failed");
-  }
-
-  return response.json();
-}
-
-export async function login(username: string, password: string): Promise<TokenResponse> {
-  const response = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.detail || "Login failed");
-  }
-
-  return response.json();
-}
-
-export async function getExpenses(token: string, category?: string, type?: string) {
-  const url = new URL(`${API_URL}/expenses`);
-  if (category) url.searchParams.append("category", category);
-  if (type) url.searchParams.append("type", type);
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!response.ok) throw new Error("Failed to fetch expenses");
-  return response.json();
-}
-
-export async function createExpense(
-  token: string,
-  amount: number,
-  category: string,
-  description: string,
-  date: string,
-  type: string
-) {
-  const response = await fetch(`${API_URL}/expenses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ amount, category, description, date, type }),
-  });
-
-  if (!response.ok) throw new Error("Failed to create expense");
-  return response.json();
-}
-
-export async function updateExpense(
+export const updateExpense = async (
   token: string,
   id: number,
   amount: number,
@@ -125,26 +59,73 @@ export async function updateExpense(
   description: string,
   date: string,
   type: string
-) {
-  const response = await fetch(`${API_URL}/expenses/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ amount, category, description, date, type }),
-  });
+) => {
+  const res = await api.put(
+    `/expenses/${id}`,
+    { amount, category, description, date, type },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+};
 
-  if (!response.ok) throw new Error("Failed to update expense");
-  return response.json();
-}
-
-export async function deleteExpense(token: string, id: number) {
-  const response = await fetch(`${API_URL}/expenses/${id}`, {
-    method: "DELETE",
+export const deleteExpense = async (token: string, id: number) => {
+  const res = await api.delete(`/expenses/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  return res.data;
+};
 
-  if (!response.ok) throw new Error("Failed to delete expense");
-  return response.json();
-}
+// -------------------------
+// URL Generation
+// -------------------------
+export const generatePaymentUrl = async (token: string) => {
+  const res = await api.post(
+    "/generate-url",
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+};
+
+// -------------------------
+// PENDING TRANSACTION
+// -------------------------
+export const getPendingTransaction = async (token: string) => {
+  const res = await api.get("/pending-transaction", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+export const confirmPendingTransaction = async (
+  token: string,
+  amount: number,
+  category: string,
+  description: string,
+  date: string,
+  type: string
+) => {
+  const res = await api.post(
+    "/confirm-transaction",
+    { amount, category, description, date, type },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+};
+
+export const cancelPendingTransaction = async (token: string) => {
+  const res = await api.post(
+    "/cancel-transaction",
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+};
+
+// -------------------------
+// ✅ SMS PARSER (NEW)
+// -------------------------
+export const parseSms = async (sms: string) => {
+  const res = await api.post("/parse-sms", { sms });
+  return res.data;
+};

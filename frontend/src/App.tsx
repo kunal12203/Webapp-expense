@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import { Dashboard } from './components/Dashboard';
@@ -43,21 +43,67 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/" element={
-        token ? <Dashboard token={token} onLogout={handleLogout} /> : <Login onLogin={handleLogin} onSwitchToSignup={() => navigate('/signup')} error={error} />
-      } />
-      <Route path="/login" element={<Login onLogin={handleLogin} onSwitchToSignup={() => navigate('/signup')} error={error} />} />
-      <Route path="/signup" element={<Signup onSignup={handleSignup} onSwitchToLogin={() => navigate('/login')} error={error} />} />
-      <Route path="/dashboard" element={
-        token ? <Dashboard token={token} onLogout={handleLogout} /> : <Login onLogin={handleLogin} onSwitchToSignup={() => navigate('/signup')} error={error} />
-      } />
+      <Route
+        path="/"
+        element={
+          token ? (
+            <Dashboard token={token} onLogout={handleLogout} />
+          ) : (
+            <Login
+              onLogin={handleLogin}
+              onSwitchToSignup={() => navigate('/signup')}
+              error={error}
+            />
+          )
+        }
+      />
+
+      <Route
+        path="/login"
+        element={
+          <Login
+            onLogin={handleLogin}
+            onSwitchToSignup={() => navigate('/signup')}
+            error={error}
+          />
+        }
+      />
+
+      <Route
+        path="/signup"
+        element={
+          <Signup
+            onSignup={handleSignup}
+            onSwitchToLogin={() => navigate('/login')}
+            error={error}
+          />
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          token ? (
+            <Dashboard token={token} onLogout={handleLogout} />
+          ) : (
+            <Login
+              onLogin={handleLogin}
+              onSwitchToSignup={() => navigate('/signup')}
+              error={error}
+            />
+          )
+        }
+      />
+
+      {/* 🔥 FIXED: PASS SMS TEXT TO MODAL */}
       <Route path="/add-expense/:token" element={<PendingExpensePage />} />
     </Routes>
   );
 }
 
 function PendingExpensePage() {
-  const { token } = useParams<{ token: string }>();
+  const { token } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
 
   if (!token) {
@@ -65,20 +111,22 @@ function PendingExpensePage() {
     return null;
   }
 
+  // 🔥 Extract SMS from URL Query
+  const smsText = decodeURIComponent(location.search.replace("?", ""));
+
   return (
     <PendingTransactionModal
       token={token}
-      onClose={() => navigate('/login')}
+      sms={smsText}       // PASS SMS TO MODAL
+      onClose={() => navigate('/dashboard')}
     />
   );
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppContent />
     </BrowserRouter>
   );
 }
-
-export default App;

@@ -4,12 +4,14 @@ import {
   getPendingTransaction,
   confirmPendingTransaction,
   cancelPendingTransaction,
+  parseSms,   // 🔥 ADD API IMPORT
 } from "../services/api";
 import { X, Check, Trash2, Sparkles } from "lucide-react";
 
 interface Props {
   token: string;
   onClose: () => void;
+  sms?: string;  // 🔥 NEW PROP
 }
 
 const categories = [
@@ -21,10 +23,10 @@ const categories = [
   "Other",
 ];
 
-export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => {
+export const PendingTransactionModal: React.FC<Props> = ({ token, onClose, sms }) => {
   const [searchParams] = useSearchParams();
-  
-  // ✅ UPDATED: Initialize state from URL query parameters (AI-parsed data)
+
+  // 🔥 Initialize form fields
   const [amount, setAmount] = useState(searchParams.get("amount") || "");
   const [category, setCategory] = useState(searchParams.get("category") || "Food");
   const [description, setDescription] = useState(searchParams.get("note") || "");
@@ -36,15 +38,36 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
   const [error, setError] = useState("");
   const [isAiParsed, setIsAiParsed] = useState(false);
 
+  // 🔥 NEW EFFECT — Parse deep-linked SMS text
   useEffect(() => {
-    // ✅ Check if data was AI-parsed (has query params)
-    const hasQueryParams = searchParams.get("amount") || 
-                          searchParams.get("note") || 
-                          searchParams.get("category");
-    
-    if (hasQueryParams) {
-      setIsAiParsed(true);
-    }
+    if (!sms || sms.trim().length < 4) return;
+
+    const fetchParsed = async () => {
+      try {
+        const parsed = await parseSms(sms);
+
+        setAmount(parsed.amount || "");
+        setDescription(parsed.merchant || "");
+        setDate(parsed.date || new Date().toISOString().split("T")[0]);
+        setCategory("Other");
+
+        setIsAiParsed(true);
+      } catch (err) {
+        console.error("SMS parsing failed:", err);
+      }
+    };
+
+    fetchParsed();
+  }, [sms]);
+
+  // Detect if URL had prefilled fields
+  useEffect(() => {
+    const hasQueryParams =
+      searchParams.get("amount") ||
+      searchParams.get("note") ||
+      searchParams.get("category");
+
+    if (hasQueryParams) setIsAiParsed(true);
   }, [searchParams]);
 
   const handleConfirm = async (e: React.FormEvent) => {
@@ -74,7 +97,6 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
 
   const handleCancel = async () => {
     if (!window.confirm("Cancel this transaction?")) return;
-
     try {
       await cancelPendingTransaction(token);
       onClose();
@@ -86,10 +108,12 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="glass-card max-w-md w-full p-6 animate-scale-in">
+        
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
             <h3 className="text-2xl font-bold">Add Quick Expense</h3>
-            {/* ✅ NEW: Show AI badge when data is pre-filled */}
+
+            {/* AI Badge */}
             {isAiParsed && (
               <span className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full">
                 <Sparkles className="w-3 h-3" />
@@ -97,16 +121,17 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
               </span>
             )}
           </div>
+
           <button onClick={onClose} className="btn btn-ghost w-10 h-10 p-0">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ✅ NEW: Show info banner when AI-parsed */}
+        {/* AI Banner */}
         {isAiParsed && (
           <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <p className="text-sm text-blue-800 dark:text-blue-300">
-              ✨ <strong>Details auto-filled from SMS!</strong> Please review and confirm.
+              ✨ <strong>Fields auto-filled from SMS!</strong> Review & confirm.
             </p>
           </div>
         )}
@@ -124,6 +149,7 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
             >
               💸 Expense
             </button>
+
             <button
               type="button"
               onClick={() => setType("income")}
@@ -197,6 +223,7 @@ export const PendingTransactionModal: React.FC<Props> = ({ token, onClose }) => 
               <Check className="w-4 h-4" />
               {loading ? "Confirming..." : "Confirm"}
             </button>
+
             <button
               type="button"
               onClick={handleCancel}
