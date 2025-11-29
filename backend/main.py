@@ -63,17 +63,13 @@ class PendingTransaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     token = Column(String, unique=True, index=True)
-    
-    # ✅ NEW: Store parsed SMS data
     amount = Column(Float, nullable=True)
     category = Column(String, nullable=True)
-    description = Column(String, nullable=True)  # Changed from 'note'
+    description = Column(String, nullable=True)  # ✅ Use "description"
     date = Column(String, nullable=True)
-    type = Column(String, nullable=True)  # 'expense' or 'income'
-    
+    type = Column(String, nullable=True)
     created_at = Column(Date, default=datetime.utcnow)
-    status = Column(String, default="pending")  # pending, confirmed, cancelled
-
+    status = Column(String, default="pending")
 
 class Expense(Base):
     __tablename__ = "expenses"
@@ -85,15 +81,6 @@ class Expense(Base):
     date = Column(Date)
     type = Column(String)  # 'expense' or 'income'
 
-class PendingTransaction(Base):
-    __tablename__ = "pending_transactions"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    token = Column(String, unique=True, index=True)
-    amount = Column(Float, nullable=True)
-    note = Column(String, nullable=True)
-    created_at = Column(Date)
-    status = Column(String, default="pending")  # pending, confirmed, cancelled
 
 # Create tables
 Base.metadata.create_all(bind=engine)
