@@ -160,6 +160,11 @@ export async function parseSms(sms: string) {
     body: JSON.stringify({ sms_text: sms }),
   });
 
-  if (!res.ok) throw new Error("Failed to parse SMS");
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("SMS parsing error:", errorText);
+    throw new Error("Failed to parse SMS");
+  }
+  
   return res.json();
 }
