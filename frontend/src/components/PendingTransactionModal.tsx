@@ -3,9 +3,10 @@ import { useSearchParams } from "react-router-dom";
 import {
   confirmPendingTransaction,
   cancelPendingTransaction,
+  parseSms,
 } from "../services/api";
 
-import { X, Check, Trash2, Sparkles } from "lucide-react";
+import { X, Check, Trash2, Sparkles, Loader2 } from "lucide-react";
 
 interface Props {
   token: string;
@@ -27,39 +28,89 @@ export const PendingTransactionModal: React.FC<Props> = ({
 }) => {
   const [searchParams] = useSearchParams();
 
-  // ✅ Initialize from URL query parameters (already parsed by backend!)
-  const [amount, setAmount] = useState(searchParams.get("amount") || "");
-  const [category, setCategory] = useState(
-    searchParams.get("category") || "Food"
-  );
-  const [description, setDescription] = useState(
-    searchParams.get("note") || ""
-  );
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("Food");
+  const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [type, setType] = useState<"expense" | "income">(
-    (searchParams.get("type") as "expense" | "income") || "expense"
-  );
+  const [type, setType] = useState<"expense" | "income">("expense");
 
   const [loading, setLoading] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [isAiParsed, setIsAiParsed] = useState(false);
   const [error, setError] = useState("");
 
-  // Check if data was AI-parsed (has query params)
   useEffect(() => {
-    const hasQueryParams =
-      searchParams.get("amount") ||
-      searchParams.get("note") ||
-      searchParams.get("category");
+    const parseUrlParams = async () => {
+      // ✅ Check if we have structured query params (already parsed)
+      const hasStructuredParams =
+        searchParams.get("amount") &&
+        searchParams.get("note");
 
-    if (hasQueryParams) {
-      setIsAiParsed(true);
-      console.log("✅ AI-parsed data loaded from URL:", {
-        amount: searchParams.get("amount"),
-        note: searchParams.get("note"),
-        category: searchParams.get("category"),
-        type: searchParams.get("type"),
-      });
-    }
+      if (hasStructuredParams) {
+        // Already parsed - just use the params
+        setAmount(searchParams.get("amount") || "");
+        setDescription(searchParams.get("note") || "");
+        setCategory(searchParams.get("category") || "Food");
+        setType(
+          (searchParams.get("type") as "expense" | "income") || "expense"
+        );
+        setIsAiParsed(true);
+        console.log("✅ Pre-parsed data loaded from URL");
+        return;
+      }
+
+      // ✅ Check if we have raw SMS text in URL
+      // URL format: /add-expense/TOKEN?Dear%20UPI%20user%20A/C%20X6725...
+      const queryString = window.location.search;
+      
+      if (!queryString || queryString.length < 10) {
+        console.log("No query params found");
+        return;
+      }
+
+      // Extract raw SMS (everything after ?)
+      const rawSms = decodeURIComponent(queryString.substring(1));
+      
+      console.log("📱 Raw SMS detected:", rawSms);
+
+      // Check if it looks like an SMS (not structured params)
+      if (rawSms.includes("debited") || rawSms.includes("credited") || rawSms.includes("A/C")) {
+        console.log("🤖 Parsing SMS with AI...");
+        setParsing(true);
+
+        try {
+          const result = await parseSms(rawSms);
+          
+          console.log("✅ AI parsing result:", result);
+
+          // Update form fields with parsed data
+          if (result.amount) {
+            setAmount(result.amount.toString());
+          }
+          if (result.merchant) {
+            setDescription(result.merchant);
+          }
+          if (result.category) {
+            setCategory(result.category);
+          }
+          if (result.transaction_type) {
+            setType(result.transaction_type === "credit" ? "income" : "expense");
+          }
+          if (result.date) {
+            setDate(result.date);
+          }
+
+          setIsAiParsed(true);
+        } catch (err) {
+          console.error("❌ SMS parsing failed:", err);
+          setError("Failed to parse SMS. Please enter details manually.");
+        } finally {
+          setParsing(false);
+        }
+      }
+    };
+
+    parseUrlParams();
   }, [searchParams]);
 
   const handleConfirm = async (e: React.FormEvent) => {
@@ -80,7 +131,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
     setError("");
 
     try {
-      console.log("Submitting transaction:", {
+      console.log("💾 Submitting transaction:", {
         token,
         amount: parseFloat(amount),
         category,
@@ -101,7 +152,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
       alert("✅ Transaction added successfully!");
       onClose();
     } catch (err) {
-      console.error("Error confirming transaction:", err);
+      console.error("❌ Error confirming transaction:", err);
       setError(
         err instanceof Error ? err.message : "Failed to confirm transaction"
       );
@@ -117,10 +168,27 @@ export const PendingTransactionModal: React.FC<Props> = ({
       await cancelPendingTransaction(token);
       onClose();
     } catch (err) {
-      console.error("Error canceling transaction:", err);
+      console.error("❌ Error canceling transaction:", err);
       setError("Failed to cancel");
     }
   };
+
+  // Show loading spinner while parsing
+  if (parsing) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="glass-card max-w-md w-full p-8">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+            <h3 className="text-xl font-bold">Parsing SMS with AI...</h3>
+            <p className="text-gray-600 text-sm text-center">
+              Claude AI is analyzing your transaction details
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -252,7 +320,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Saving...
                 </>
               ) : (
