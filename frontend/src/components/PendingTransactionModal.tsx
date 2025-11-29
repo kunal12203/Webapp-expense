@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   confirmPendingTransaction,
   cancelPendingTransaction,
   parseSms,
+  createPendingTransaction,
 } from "../services/api";
 
 import { X, Check, Trash2, Sparkles, Loader2 } from "lucide-react";
@@ -27,6 +28,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
   onClose,
 }) => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Food");
@@ -38,31 +40,43 @@ export const PendingTransactionModal: React.FC<Props> = ({
   const [parsing, setParsing] = useState(false);
   const [isAiParsed, setIsAiParsed] = useState(false);
   const [error, setError] = useState("");
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const parseUrlParams = async () => {
+    const parseAndSave = async () => {
       // ✅ Check if we have structured query params (already parsed)
       const hasStructuredParams =
-        searchParams.get("amount") &&
-        searchParams.get("note");
+        searchParams.get("amount") && searchParams.get("note");
 
       if (hasStructuredParams) {
         // Already parsed - just use the params
-        setAmount(searchParams.get("amount") || "");
-        setDescription(searchParams.get("note") || "");
-        setCategory(searchParams.get("category") || "Food");
-        setType(
-          (searchParams.get("type") as "expense" | "income") || "expense"
-        );
+        const parsedAmount = searchParams.get("amount") || "";
+        const parsedNote = searchParams.get("note") || "";
+        const parsedCategory = searchParams.get("category") || "Food";
+        const parsedType =
+          (searchParams.get("type") as "expense" | "income") || "expense";
+
+        setAmount(parsedAmount);
+        setDescription(parsedNote);
+        setCategory(parsedCategory);
+        setType(parsedType);
         setIsAiParsed(true);
-        console.log("✅ Pre-parsed data loaded from URL");
+
+        // ✅ AUTO-SAVE to pending transactions
+        await autoSavePending({
+          amount: parseFloat(parsedAmount),
+          category: parsedCategory,
+          description: parsedNote,
+          date: date,
+          type: parsedType,
+        });
+
         return;
       }
 
       // ✅ Check if we have raw SMS text in URL
-      // URL format: /add-expense/TOKEN?Dear%20UPI%20user%20A/C%20X6725...
       const queryString = window.location.search;
-      
+
       if (!queryString || queryString.length < 10) {
         console.log("No query params found");
         return;
@@ -70,37 +84,45 @@ export const PendingTransactionModal: React.FC<Props> = ({
 
       // Extract raw SMS (everything after ?)
       const rawSms = decodeURIComponent(queryString.substring(1));
-      
+
       console.log("📱 Raw SMS detected:", rawSms);
 
-      // Check if it looks like an SMS (not structured params)
-      if (rawSms.includes("debited") || rawSms.includes("credited") || rawSms.includes("A/C")) {
+      // Check if it looks like an SMS
+      if (
+        rawSms.includes("debited") ||
+        rawSms.includes("credited") ||
+        rawSms.includes("A/C")
+      ) {
         console.log("🤖 Parsing SMS with AI...");
         setParsing(true);
 
         try {
           const result = await parseSms(rawSms);
-          
+
           console.log("✅ AI parsing result:", result);
 
-          // Update form fields with parsed data
-          if (result.amount) {
-            setAmount(result.amount.toString());
-          }
-          if (result.merchant) {
-            setDescription(result.merchant);
-          }
-          if (result.category) {
-            setCategory(result.category);
-          }
-          if (result.transaction_type) {
-            setType(result.transaction_type === "credit" ? "income" : "expense");
-          }
-          if (result.date) {
-            setDate(result.date);
-          }
+          // Update form fields
+          const parsedAmount = result.amount?.toString() || "";
+          const parsedMerchant = result.merchant || "";
+          const parsedCategory = result.category || "Other";
+          const parsedType = result.transaction_type === "credit" ? "income" : "expense";
+          const parsedDate = result.date || date;
 
+          setAmount(parsedAmount);
+          setDescription(parsedMerchant);
+          setCategory(parsedCategory);
+          setType(parsedType);
+          setDate(parsedDate);
           setIsAiParsed(true);
+
+          // ✅ AUTO-SAVE to pending transactions
+          await autoSavePending({
+            amount: result.amount || 0,
+            category: parsedCategory,
+            description: parsedMerchant,
+            date: parsedDate,
+            type: parsedType,
+          });
         } catch (err) {
           console.error("❌ SMS parsing failed:", err);
           setError("Failed to parse SMS. Please enter details manually.");
@@ -110,8 +132,35 @@ export const PendingTransactionModal: React.FC<Props> = ({
       }
     };
 
-    parseUrlParams();
+    parseAndSave();
   }, [searchParams]);
+
+  // ✅ NEW: Auto-save to pending transactions
+  const autoSavePending = async (data: {
+    amount: number;
+    category: string;
+    description: string;
+    date: string;
+    type: string;
+  }) => {
+    try {
+      console.log("💾 Auto-saving to pending transactions...", data);
+
+      const authToken = localStorage.getItem("token");
+      if (!authToken) {
+        console.log("No auth token - skipping auto-save");
+        return;
+      }
+
+      const result = await createPendingTransaction(authToken, data);
+      setPendingToken(result.token);
+
+      console.log("✅ Saved to pending with token:", result.token);
+    } catch (err) {
+      console.error("❌ Failed to auto-save:", err);
+      // Don't show error to user - they can still enter manually
+    }
+  };
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,17 +180,13 @@ export const PendingTransactionModal: React.FC<Props> = ({
     setError("");
 
     try {
-      console.log("💾 Submitting transaction:", {
-        token,
-        amount: parseFloat(amount),
-        category,
-        description,
-        date,
-        type,
-      });
+      console.log("💾 Confirming transaction...");
+
+      // Use pendingToken if available, otherwise use token from URL
+      const tokenToUse = pendingToken || token;
 
       await confirmPendingTransaction(
-        token,
+        tokenToUse,
         parseFloat(amount),
         category,
         description,
@@ -149,8 +194,9 @@ export const PendingTransactionModal: React.FC<Props> = ({
         type
       );
 
-      alert("✅ Transaction added successfully!");
+      alert("✅ Transaction confirmed and saved!");
       onClose();
+      navigate("/dashboard"); // Refresh dashboard
     } catch (err) {
       console.error("❌ Error confirming transaction:", err);
       setError(
@@ -165,12 +211,24 @@ export const PendingTransactionModal: React.FC<Props> = ({
     if (!window.confirm("Cancel this transaction?")) return;
 
     try {
-      await cancelPendingTransaction(token);
+      // Use pendingToken if available, otherwise use token from URL
+      const tokenToUse = pendingToken || token;
+
+      await cancelPendingTransaction(tokenToUse);
+      console.log("✅ Transaction cancelled");
       onClose();
+      navigate("/dashboard");
     } catch (err) {
       console.error("❌ Error canceling transaction:", err);
       setError("Failed to cancel");
     }
+  };
+
+  const handleClose = () => {
+    // ✅ Just close - transaction stays in pending for later review
+    console.log("Modal closed - transaction saved in pending");
+    onClose();
+    navigate("/dashboard");
   };
 
   // Show loading spinner while parsing
@@ -195,7 +253,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
       <div className="glass-card max-w-md w-full p-6 animate-scale-in">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
-            <h3 className="text-2xl font-bold">Add Quick Expense</h3>
+            <h3 className="text-2xl font-bold">Quick Expense</h3>
             {isAiParsed && (
               <span className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full">
                 <Sparkles className="w-3 h-3" />
@@ -204,7 +262,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
             )}
           </div>
 
-          <button onClick={onClose} className="btn btn-ghost w-10 h-10 p-0">
+          <button onClick={handleClose} className="btn btn-ghost w-10 h-10 p-0">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -212,8 +270,8 @@ export const PendingTransactionModal: React.FC<Props> = ({
         {isAiParsed && (
           <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <p className="text-sm text-blue-800 dark:text-blue-300">
-              ✨ <strong>Auto-filled from SMS!</strong> Please review and
-              confirm.
+              ✨ <strong>Auto-filled & saved!</strong> Review and confirm, or
+              close to review later.
             </p>
           </div>
         )}
@@ -337,7 +395,7 @@ export const PendingTransactionModal: React.FC<Props> = ({
               className="btn btn-danger flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
-              Cancel
+              Delete
             </button>
           </div>
         </form>

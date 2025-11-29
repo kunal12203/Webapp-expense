@@ -15,6 +15,45 @@ export async function signup(username: string, email: string, password: string) 
   if (!res.ok) throw new Error("Signup failed");
   return res.json();
 }
+export async function createPendingTransaction(
+  token: string,
+  data: {
+    amount: number;
+    category: string;
+    description: string;
+    date: string;
+    type: string;
+  }
+) {
+  const res = await fetch(`${API_URL}/api/pending-transaction`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      amount: data.amount,
+      category: data.category,
+      description: data.description,
+      date: data.date,
+      type: data.type,
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to create pending transaction");
+  return res.json();
+}
+
+export async function getPendingTransactions(token: string) {
+  const res = await fetch(`${API_URL}/api/pending-transactions`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("Failed to fetch pending transactions");
+  return res.json();
+}
 
 export async function login(username: string, password: string) {
   const res = await fetch(`${API_URL}/api/login`, {

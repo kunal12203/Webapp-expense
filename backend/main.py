@@ -56,6 +56,25 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
+
+class PendingTransaction(Base):
+    __tablename__ = "pending_transactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    token = Column(String, unique=True, index=True)
+    
+    # ✅ NEW: Store parsed SMS data
+    amount = Column(Float, nullable=True)
+    category = Column(String, nullable=True)
+    description = Column(String, nullable=True)  # Changed from 'note'
+    date = Column(String, nullable=True)
+    type = Column(String, nullable=True)  # 'expense' or 'income'
+    
+    created_at = Column(Date, default=datetime.utcnow)
+    status = Column(String, default="pending")  # pending, confirmed, cancelled
+
+
 class Expense(Base):
     __tablename__ = "expenses"
     id = Column(Integer, primary_key=True, index=True)
@@ -128,6 +147,14 @@ class PendingTransactionResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class PendingTransactionCreate(BaseModel):
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
+    type: Optional[str] = None
+
 
 # App initialization
 app = FastAPI(title="Expense Tracker API", version="2.0.0")
@@ -249,6 +276,23 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.get("/api/pending-transactions", response_model=List[PendingTransactionResponse])
+async def get_pending_transactions(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all pending transactions for current user
+    """
+    user = get_current_user(credentials.credentials, db)
+    
+    pending_list = db.query(PendingTransaction).filter(
+        PendingTransaction.user_id == user.id,
+        PendingTransaction.status == "pending"
+    ).order_by(PendingTransaction.created_at.desc()).all()
+    
+    return pending_list
+
 @app.get("/api/me")
 def get_me(current_user: User = Depends(get_current_user)):
     return {
@@ -293,6 +337,42 @@ def create_expense(
         date=new_expense.date.strftime("%Y-%m-%d"),
         type=new_expense.type
     )
+
+@app.post("/api/pending-transaction", response_model=PendingTransactionResponse)
+async def create_pending_transaction(
+    pending_data: PendingTransactionCreate,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new pending transaction with parsed SMS data
+    This is called automatically when SMS is parsed
+    """
+    # Verify token
+    user = get_current_user(credentials.credentials, db)
+    
+    # Generate unique token
+    token = token_urlsafe(16)
+    
+    # Create pending transaction
+    pending = PendingTransaction(
+        user_id=user.id,
+        token=token,
+        amount=pending_data.amount,
+        category=pending_data.category,
+        description=pending_data.description,
+        date=pending_data.date,
+        type=pending_data.type,
+        status="pending"
+    )
+    
+    db.add(pending)
+    db.commit()
+    db.refresh(pending)
+    
+    return pending
+
+
 
 @app.get("/api/expenses", response_model=List[ExpenseResponse])
 def get_expenses(
@@ -450,53 +530,62 @@ def get_pending_transaction(token: str, db: Session = Depends(get_db)):
     )
 
 @app.post("/api/confirm-pending/{token}")
-def confirm_pending_transaction(
+async def confirm_pending_transaction(
     token: str,
-    expense: ExpenseCreate,
+    data: ExpenseCreate,
     db: Session = Depends(get_db)
 ):
+    """
+    Confirm pending transaction: save to Expenses and delete from Pending
+    """
+    # Find pending transaction
     pending = db.query(PendingTransaction).filter(
-        PendingTransaction.token == token
+        PendingTransaction.token == token,
+        PendingTransaction.status == "pending"
     ).first()
     
     if not pending:
-        raise HTTPException(status_code=404, detail="Invalid token")
+        raise HTTPException(status_code=404, detail="Pending transaction not found")
     
-    if pending.status != "pending":
-        raise HTTPException(status_code=400, detail="Token already processed")
-    
-    # Create expense for the user who generated the URL
-    try:
-        expense_date = datetime.strptime(expense.date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format")
-    
-    new_expense = Expense(
+    # Create expense
+    expense = Expense(
         user_id=pending.user_id,
-        amount=expense.amount,
-        category=expense.category,
-        description=expense.description,
-        date=expense_date,
-        type=expense.type
+        amount=data.amount,
+        category=data.category,
+        description=data.description,
+        date=datetime.strptime(data.date, "%Y-%m-%d").date(),
+        type=data.type
     )
-    db.add(new_expense)
     
-    # Mark as confirmed
+    db.add(expense)
+    
+    # ✅ Delete from pending (or mark as confirmed)
     pending.status = "confirmed"
-    db.commit()
     
-    return {"message": "Transaction confirmed successfully"}
+    db.commit()
+    db.refresh(expense)
+    
+    return {"message": "Transaction confirmed", "expense_id": expense.id}
 
 @app.delete("/api/cancel-pending/{token}")
-def cancel_pending_transaction(token: str, db: Session = Depends(get_db)):
+async def cancel_pending_transaction(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Cancel pending transaction: delete from Pending
+    """
     pending = db.query(PendingTransaction).filter(
-        PendingTransaction.token == token
+        PendingTransaction.token == token,
+        PendingTransaction.status == "pending"
     ).first()
     
     if not pending:
-        raise HTTPException(status_code=404, detail="Invalid token")
+        raise HTTPException(status_code=404, detail="Pending transaction not found")
     
+    # ✅ Mark as cancelled (or delete)
     pending.status = "cancelled"
+    
     db.commit()
     
     return {"message": "Transaction cancelled"}
