@@ -28,9 +28,13 @@ export async function login(username: string, password: string) {
 }
 
 // -----------------------------
-// EXPENSES
+// EXPENSE CRUD
 // -----------------------------
-export async function getExpenses(token: string, category?: string, type?: string) {
+export async function getExpenses(
+  token: string,
+  category?: string,
+  type?: string
+) {
   const url = new URL(`${API_URL}/api/expenses`);
   if (category) url.searchParams.append("category", category);
   if (type) url.searchParams.append("type", type);
@@ -64,8 +68,53 @@ export async function createExpense(
   return res.json();
 }
 
+export async function updateExpense(
+  token: string,
+  id: number,
+  amount: number,
+  category: string,
+  description: string,
+  date: string,
+  type: string
+) {
+  const res = await fetch(`${API_URL}/api/expenses/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ amount, category, description, date, type }),
+  });
+
+  if (!res.ok) throw new Error("Failed to update expense");
+  return res.json();
+}
+
+export async function deleteExpense(token: string, id: number) {
+  const res = await fetch(`${API_URL}/api/expenses/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error("Failed to delete expense");
+  return res.json();
+}
+
 // -----------------------------
-// PENDING TRANSACTIONS
+// URL GENERATION
+// -----------------------------
+export async function generatePaymentUrl(token: string) {
+  const res = await fetch(`${API_URL}/api/generate-url`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error("Failed to generate URL");
+  return res.json();
+}
+
+// -----------------------------
+// PENDING TRANSACTION
 // -----------------------------
 export async function getPendingTransaction(token: string) {
   const res = await fetch(`${API_URL}/api/pending-transaction/${token}`);
@@ -88,7 +137,7 @@ export async function confirmPendingTransaction(
     body: JSON.stringify({ amount, category, description, date, type }),
   });
 
-  if (!res.ok) throw new Error("Failed to confirm");
+  if (!res.ok) throw new Error("Failed to confirm transaction");
   return res.json();
 }
 
@@ -97,7 +146,7 @@ export async function cancelPendingTransaction(token: string) {
     method: "DELETE",
   });
 
-  if (!res.ok) throw new Error("Failed to cancel");
+  if (!res.ok) throw new Error("Failed to cancel transaction");
   return res.json();
 }
 
