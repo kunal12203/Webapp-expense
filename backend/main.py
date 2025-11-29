@@ -14,6 +14,13 @@ from secrets import token_urlsafe
 import hashlib
 import os
 
+# In main.py, add 2 lines:
+from sms_parser_api import router as sms_router
+
+
+# Add new file: sms_parser_api.py (copy from outputs)
+# Add to requirements.txt: anthropic==0.43.0
+# Set environment variable: ANTHROPIC_API_KEY
 # Load environment variables
 load_dotenv()
 
@@ -124,6 +131,8 @@ class PendingTransactionResponse(BaseModel):
 
 # App initialization
 app = FastAPI(title="Expense Tracker API", version="2.0.0")
+
+app.include_router(sms_router)
 
 # CORS - Allow your frontend domains
 allowed_origins = [
