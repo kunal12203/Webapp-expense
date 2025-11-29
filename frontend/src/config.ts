@@ -8,5 +8,5 @@ const getApiUrl = (): string => {
 };
 
 export const config = {
-  apiUrl: getApiUrl(),
-} as const;
+  apiUrl: "https://webapp-expense.onrender.com" 
+};
