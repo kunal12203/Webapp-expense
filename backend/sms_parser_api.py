@@ -4,25 +4,40 @@ Uses Claude AI to parse bank SMS messages and extract transaction details
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
-import anthropic
 import os
 import re
+import json
 from datetime import datetime
 from urllib.parse import urlencode
 
+# Initialize router
 router = APIRouter(prefix="/api/sms-parser", tags=["SMS Parser"])
 
 # Initialize Claude AI client
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 if ANTHROPIC_API_KEY:
+    import anthropic
     claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 else:
     claude_client = None
 
 
+# ✅ CRITICAL: Define get_db FIRST before using it
+def get_db():
+    """Get database session - import from main.py"""
+    from main import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# Pydantic Models
 class SMSParseRequest(BaseModel):
     sms_text: str
     account_last_four: Optional[str] = None
@@ -76,7 +91,7 @@ Return ONLY the JSON object, nothing else."""
 
         # Call Claude API
         message = claude_client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-sonnet-4-20250514",
             max_tokens=500,
             messages=[
                 {"role": "user", "content": prompt}
@@ -90,7 +105,6 @@ Return ONLY the JSON object, nothing else."""
         response_text = response_text.replace('```json', '').replace('```', '').strip()
         
         # Parse JSON
-        import json
         parsed_data = json.loads(response_text)
         
         return {
@@ -246,7 +260,6 @@ async def generate_expense_url_from_sms(
     https://webapp-expense.vercel.app/add-expense/AURzYl4FjOTnz9iPaKgYbw?amount=500&note=Starbucks&category=Food
     """
     from main import PendingTransaction, FRONTEND_URL
-    from fastapi.responses import RedirectResponse
     
     # Verify token exists
     pending = db.query(PendingTransaction).filter(
@@ -297,14 +310,3 @@ async def generate_expense_url_from_sms(
     
     # Redirect to the final URL
     return RedirectResponse(url=final_url)
-
-
-# Dependency injection helper
-def get_db():
-    """Get database session - import from main.py"""
-    from main import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
