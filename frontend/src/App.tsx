@@ -1,44 +1,59 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Login } from './components/Login';
-import { Signup } from './components/Signup';
-import { Dashboard } from './components/Dashboard';
-import { PendingTransactionModal } from './components/PendingTransactionModal';
-import { signup, login } from './services/api';
+import React, { useState } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
+
+import { Login } from "./components/Login";
+import { Signup } from "./components/Signup";
+import { Dashboard } from "./components/Dashboard";
+import { PendingTransactionModal } from "./components/PendingTransactionModal";
+
+import { signup, login } from "./services/api";
 
 function AppContent() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [error, setError] = useState('');
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("token")
+  );
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSignup = async (username: string, email: string, password: string) => {
-    setError('');
+  const handleSignup = async (
+    username: string,
+    email: string,
+    password: string
+  ) => {
     try {
+      setError("");
       const data = await signup(username, email, password);
-      localStorage.setItem('token', data.access_token);
+      localStorage.setItem("token", data.access_token);
       setToken(data.access_token);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed');
+      setError(err instanceof Error ? err.message : "Signup failed");
     }
   };
 
   const handleLogin = async (username: string, password: string) => {
-    setError('');
     try {
+      setError("");
       const data = await login(username, password);
-      localStorage.setItem('token', data.access_token);
+      localStorage.setItem("token", data.access_token);
       setToken(data.access_token);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : "Login failed");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
     setToken(null);
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -51,7 +66,7 @@ function AppContent() {
           ) : (
             <Login
               onLogin={handleLogin}
-              onSwitchToSignup={() => navigate('/signup')}
+              onSwitchToSignup={() => navigate("/signup")}
               error={error}
             />
           )
@@ -63,7 +78,7 @@ function AppContent() {
         element={
           <Login
             onLogin={handleLogin}
-            onSwitchToSignup={() => navigate('/signup')}
+            onSwitchToSignup={() => navigate("/signup")}
             error={error}
           />
         }
@@ -74,7 +89,7 @@ function AppContent() {
         element={
           <Signup
             onSignup={handleSignup}
-            onSwitchToLogin={() => navigate('/login')}
+            onSwitchToLogin={() => navigate("/login")}
             error={error}
           />
         }
@@ -88,14 +103,14 @@ function AppContent() {
           ) : (
             <Login
               onLogin={handleLogin}
-              onSwitchToSignup={() => navigate('/signup')}
+              onSwitchToSignup={() => navigate("/signup")}
               error={error}
             />
           )
         }
       />
 
-      {/* 🔥 FIXED: PASS SMS TEXT TO MODAL */}
+      {/* 🔥 Deep link with SMS auto-filling */}
       <Route path="/add-expense/:token" element={<PendingExpensePage />} />
     </Routes>
   );
@@ -107,18 +122,18 @@ function PendingExpensePage() {
   const navigate = useNavigate();
 
   if (!token) {
-    navigate('/login');
+    navigate("/login");
     return null;
   }
 
-  // 🔥 Extract SMS from URL Query
+  // 🔥 Extract SMS from URL query
   const smsText = decodeURIComponent(location.search.replace("?", ""));
 
   return (
     <PendingTransactionModal
       token={token}
-      sms={smsText}       // PASS SMS TO MODAL
-      onClose={() => navigate('/dashboard')}
+      sms={smsText}
+      onClose={() => navigate("/dashboard")}
     />
   );
 }

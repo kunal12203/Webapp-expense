@@ -1,131 +1,116 @@
-import axios from "axios";
+import { config } from "../config";
 
-const API_URL = import.meta.env.VITE_BACKEND_URL;
+const API_URL = config.apiUrl;
 
-// Create axios instance
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// -------------------------
+// -----------------------------
 // AUTH
-// -------------------------
-export const signup = async (username: string, email: string, password: string) => {
-  const res = await api.post("/signup", { username, email, password });
-  return res.data;
-};
-
-export const login = async (username: string, password: string) => {
-  const res = await api.post("/token", { username, password });
-  return res.data;
-};
-
-// -------------------------
-// EXPENSE CRUD
-// -------------------------
-export const getExpenses = async (
-  token: string,
-  category?: string,
-  type?: string
-) => {
-  const res = await api.get("/expenses", {
-    headers: { Authorization: `Bearer ${token}` },
-    params: { category, type },
+// -----------------------------
+export async function signup(username: string, email: string, password: string) {
+  const res = await fetch(`${API_URL}/api/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, email, password }),
   });
-  return res.data;
-};
 
-export const createExpense = async (
+  if (!res.ok) throw new Error("Signup failed");
+  return res.json();
+}
+
+export async function login(username: string, password: string) {
+  const res = await fetch(`${API_URL}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!res.ok) throw new Error("Login failed");
+  return res.json();
+}
+
+// -----------------------------
+// EXPENSES
+// -----------------------------
+export async function getExpenses(token: string, category?: string, type?: string) {
+  const url = new URL(`${API_URL}/api/expenses`);
+  if (category) url.searchParams.append("category", category);
+  if (type) url.searchParams.append("type", type);
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error("Failed to fetch expenses");
+  return res.json();
+}
+
+export async function createExpense(
   token: string,
   amount: number,
   category: string,
   description: string,
   date: string,
   type: string
-) => {
-  const res = await api.post(
-    "/expenses",
-    { amount, category, description, date, type },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  return res.data;
-};
-
-export const updateExpense = async (
-  token: string,
-  id: number,
-  amount: number,
-  category: string,
-  description: string,
-  date: string,
-  type: string
-) => {
-  const res = await api.put(
-    `/expenses/${id}`,
-    { amount, category, description, date, type },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  return res.data;
-};
-
-export const deleteExpense = async (token: string, id: number) => {
-  const res = await api.delete(`/expenses/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
+) {
+  const res = await fetch(`${API_URL}/api/expenses`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ amount, category, description, date, type }),
   });
-  return res.data;
-};
 
-// -------------------------
-// URL Generation
-// -------------------------
-export const generatePaymentUrl = async (token: string) => {
-  const res = await api.post(
-    "/generate-url",
-    {},
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  return res.data;
-};
+  if (!res.ok) throw new Error("Failed to create expense");
+  return res.json();
+}
 
-// -------------------------
-// PENDING TRANSACTION
-// -------------------------
-export const getPendingTransaction = async (token: string) => {
-  const res = await api.get("/pending-transaction", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
-};
+// -----------------------------
+// PENDING TRANSACTIONS
+// -----------------------------
+export async function getPendingTransaction(token: string) {
+  const res = await fetch(`${API_URL}/api/pending-transaction/${token}`);
 
-export const confirmPendingTransaction = async (
+  if (!res.ok) throw new Error("Failed to load pending transaction");
+  return res.json();
+}
+
+export async function confirmPendingTransaction(
   token: string,
   amount: number,
   category: string,
   description: string,
   date: string,
   type: string
-) => {
-  const res = await api.post(
-    "/confirm-transaction",
-    { amount, category, description, date, type },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  return res.data;
-};
+) {
+  const res = await fetch(`${API_URL}/api/confirm-pending/${token}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, category, description, date, type }),
+  });
 
-export const cancelPendingTransaction = async (token: string) => {
-  const res = await api.post(
-    "/cancel-transaction",
-    {},
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  return res.data;
-};
+  if (!res.ok) throw new Error("Failed to confirm");
+  return res.json();
+}
 
-// -------------------------
-// ✅ SMS PARSER (NEW)
-// -------------------------
-export const parseSms = async (sms: string) => {
-  const res = await api.post("/parse-sms", { sms });
-  return res.data;
-};
+export async function cancelPendingTransaction(token: string) {
+  const res = await fetch(`${API_URL}/api/cancel-pending/${token}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) throw new Error("Failed to cancel");
+  return res.json();
+}
+
+// -----------------------------
+// SMS PARSER
+// -----------------------------
+export async function parseSms(sms: string) {
+  const res = await fetch(`${API_URL}/api/sms-parser/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sms_text: sms }),
+  });
+
+  if (!res.ok) throw new Error("Failed to parse SMS");
+  return res.json();
+}
