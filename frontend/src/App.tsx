@@ -5,7 +5,6 @@ import {
   Route,
   useNavigate,
   useParams,
-  useLocation,
 } from "react-router-dom";
 
 import { Login } from "./components/Login";
@@ -110,7 +109,7 @@ function AppContent() {
         }
       />
 
-      {/* 🔥 Deep link with SMS auto-filling */}
+      {/* Deep link route for pending transactions */}
       <Route path="/add-expense/:token" element={<PendingExpensePage />} />
     </Routes>
   );
@@ -118,27 +117,18 @@ function AppContent() {
 
 function PendingExpensePage() {
   const { token } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
-
-  // 🔥 LOG 1 — what is the raw query?
-  console.log("location.search =", location.search);
-
-  // 🔥 Extract SMS from URL query
-  const smsText = decodeURIComponent(location.search.replace("?", ""));
-
-  // 🔥 LOG 2 — decoded SMS text
-  console.log("Decoded SMS text =", smsText);
 
   if (!token) {
     navigate("/login");
     return null;
   }
 
+  // ✅ Query params are automatically read by useSearchParams() in the modal
+  // No need to extract anything here!
   return (
     <PendingTransactionModal
       token={token}
-      sms={smsText}      // <--- MUST be passed
       onClose={() => navigate("/dashboard")}
     />
   );
