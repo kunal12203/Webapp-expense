@@ -121,18 +121,24 @@ function PendingExpensePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // 🔥 LOG 1 — what is the raw query?
+  console.log("location.search =", location.search);
+
+  // 🔥 Extract SMS from URL query
+  const smsText = decodeURIComponent(location.search.replace("?", ""));
+
+  // 🔥 LOG 2 — decoded SMS text
+  console.log("Decoded SMS text =", smsText);
+
   if (!token) {
     navigate("/login");
     return null;
   }
 
-  // 🔥 Extract SMS from URL query
-  const smsText = decodeURIComponent(location.search.replace("?", ""));
-
   return (
     <PendingTransactionModal
       token={token}
-      sms={smsText}
+      sms={smsText}      // <--- MUST be passed
       onClose={() => navigate("/dashboard")}
     />
   );
