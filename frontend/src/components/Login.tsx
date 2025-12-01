@@ -4,10 +4,11 @@ import { LogIn, User, Lock, Sparkles } from "lucide-react";
 interface LoginProps {
   onLogin: (username: string, password: string) => Promise<void>;
   onSwitchToSignup: () => void;
+  onForgotPassword?: () => void;
   error: string;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToSignup, error }) => {
+export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToSignup, onForgotPassword, error }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -74,6 +75,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToSignup, error }
                 placeholder="Enter your password"
                 required
               />
+              {onForgotPassword && (
+                <div className="mt-2 text-right">
+                  <button
+                    type="button"
+                    onClick={onForgotPassword}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </div>
 
             {error && (

@@ -11,6 +11,8 @@ import { Login } from "./components/Login";
 import { Signup } from "./components/Signup";
 import { Dashboard } from "./components/Dashboard";
 import { PendingTransactionModal } from "./components/PendingTransactionModal";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 
 import { signup, login } from "./services/api";
 
@@ -66,6 +68,7 @@ function AppContent() {
             <Login
               onLogin={handleLogin}
               onSwitchToSignup={() => navigate("/signup")}
+              onForgotPassword={() => navigate("/forgot-password")}
               error={error}
             />
           )
@@ -78,7 +81,28 @@ function AppContent() {
           <Login
             onLogin={handleLogin}
             onSwitchToSignup={() => navigate("/signup")}
+            onForgotPassword={() => navigate("/forgot-password")}
             error={error}
+          />
+        }
+      />
+
+      <Route
+        path="/forgot-password"
+        element={
+          <ForgotPassword
+            onBack={() => navigate("/login")}
+            onResetPassword={() => navigate("/reset-password")}
+          />
+        }
+      />
+
+      <Route
+        path="/reset-password"
+        element={
+          <ResetPassword
+            onBack={() => navigate("/login")}
+            onSuccess={() => navigate("/login")}
           />
         }
       />
@@ -103,6 +127,7 @@ function AppContent() {
             <Login
               onLogin={handleLogin}
               onSwitchToSignup={() => navigate("/signup")}
+              onForgotPassword={() => navigate("/forgot-password")}
               error={error}
             />
           )

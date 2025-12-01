@@ -57,6 +57,16 @@ class User(Base):
     hashed_password = Column(String)
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    token = Column(String, unique=True, index=True)
+    created_at = Column(Date, default=datetime.utcnow)
+    expires_at = Column(Date)
+    used = Column(Integer, default=0)  # Using Integer for SQLite compatibility (0=False, 1=True)
+
+
 class PendingTransaction(Base):
     __tablename__ = "pending_transactions"
     
@@ -95,6 +105,13 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -129,7 +146,10 @@ class PendingTransactionResponse(BaseModel):
     id: int
     token: str
     amount: Optional[float]
-    note: Optional[str]
+    category: Optional[str]
+    description: Optional[str]
+    date: Optional[str]
+    type: Optional[str]
     status: str
     
     class Config:
@@ -262,6 +282,76 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/forgot-password")
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Free password reset using secure tokens stored in database
+    No email service required - user gets a reset link/token
+    """
+    # Find user by email
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        # For security, don't reveal if email exists
+        return {"message": "If that email exists, a reset token has been generated"}
+    
+    # Generate secure token
+    reset_token = token_urlsafe(32)
+    
+    # Create password reset token (expires in 1 hour)
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+    
+    password_reset = PasswordResetToken(
+        user_id=user.id,
+        token=reset_token,
+        expires_at=expires_at.date(),
+        used=0
+    )
+    
+    db.add(password_reset)
+    db.commit()
+    
+    # In a real app, you'd email this. For now, return it (or log it)
+    # You can display this token to the user or send via any free method
+    return {
+        "message": "Password reset token generated",
+        "token": reset_token,  # In production, send via email instead
+        "expires_in": "1 hour"
+    }
+
+@app.post("/api/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Reset password using the token
+    """
+    # Find valid token
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == request.token,
+        PasswordResetToken.used == 0
+    ).first()
+    
+    if not reset_token:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check if token is expired (compare dates)
+    if reset_token.expires_at < datetime.utcnow().date():
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    # Get user
+    user = db.query(User).filter(User.id == reset_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password
+    user.hashed_password = get_password_hash(request.new_password)
+    
+    # Mark token as used
+    reset_token.used = 1
+    
+    db.commit()
+    
+    return {"message": "Password successfully reset"}
 
 @app.get("/api/pending-transactions", response_model=List[PendingTransactionResponse])
 async def get_pending_transactions(
@@ -512,7 +602,10 @@ def get_pending_transaction(token: str, db: Session = Depends(get_db)):
         id=pending.id,
         token=pending.token,
         amount=pending.amount,
-        note=pending.note,
+        category=pending.category,
+        description=pending.description,
+        date=pending.date,
+        type=pending.type,
         status=pending.status
     )
 

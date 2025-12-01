@@ -67,6 +67,31 @@ export async function login(username: string, password: string) {
 }
 
 // -----------------------------
+// PASSWORD RESET
+// -----------------------------
+export async function forgotPassword(email: string) {
+  const res = await fetch(`${API_URL}/api/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) throw new Error("Failed to process request");
+  return res.json();
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const res = await fetch(`${API_URL}/api/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+
+  if (!res.ok) throw new Error("Failed to reset password");
+  return res.json();
+}
+
+// -----------------------------
 // EXPENSE CRUD
 // -----------------------------
 export async function getExpenses(
