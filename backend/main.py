@@ -361,7 +361,7 @@ async def get_pending_transactions(
     """
     Get all pending transactions for current user
     """
-    user = get_current_user(credentials.credentials, db)
+    user = get_current_user(credentials, db)
     
     pending_list = db.query(PendingTransaction).filter(
         PendingTransaction.user_id == user.id,
@@ -418,22 +418,19 @@ def create_expense(
 @app.post("/api/pending-transaction", response_model=PendingTransactionResponse)
 async def create_pending_transaction(
     pending_data: PendingTransactionCreate,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Create a new pending transaction with parsed SMS data
     This is called automatically when SMS is parsed
     """
-    # Verify token
-    user = get_current_user(credentials.credentials, db)
-    
     # Generate unique token
     token = token_urlsafe(16)
-    
+
     # Create pending transaction
     pending = PendingTransaction(
-        user_id=user.id,
+        user_id=current_user.id,
         token=token,
         amount=pending_data.amount,
         category=pending_data.category,
@@ -448,7 +445,6 @@ async def create_pending_transaction(
     db.refresh(pending)
     
     return pending
-
 
 
 @app.get("/api/expenses", response_model=List[ExpenseResponse])
