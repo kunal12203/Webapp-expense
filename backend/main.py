@@ -489,8 +489,16 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    # ✅ NEW: Create default categories for new user
-    create_default_categories(db, new_user.id)
+    # ✅ TRY to create default categories (but don't fail signup if it errors)
+    try:
+        create_default_categories(db, new_user.id)
+        print(f"✅ Created default categories for user {new_user.id}")
+    except Exception as e:
+        # Log error but continue - user can create categories manually later
+        import traceback
+        print(f"⚠️ Failed to create default categories: {str(e)}")
+        print(traceback.format_exc())
+        # Don't raise - let signup succeed anyway
     
     # Create token
     access_token = create_access_token(data={"sub": new_user.username})
