@@ -12,9 +12,14 @@ export async function signup(username: string, email: string, password: string) 
     body: JSON.stringify({ username, email, password }),
   });
 
-  if (!res.ok) throw new Error("Signup failed");
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.detail || "Signup failed");
+  }
+
   return res.json();
 }
+
 export async function createPendingTransaction(
   token: string,
   data: {
