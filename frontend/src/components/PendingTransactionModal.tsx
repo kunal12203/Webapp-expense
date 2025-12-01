@@ -85,7 +85,6 @@ export const PendingTransactionModal: React.FC<Props> = ({
       // Extract raw SMS (everything after ?)
       const rawSms = decodeURIComponent(queryString.substring(1));
 
-      console.log("📱 Raw SMS detected:", rawSms);
 
       // Check if it looks like an SMS
       if (
@@ -93,13 +92,11 @@ export const PendingTransactionModal: React.FC<Props> = ({
         rawSms.includes("credited") ||
         rawSms.includes("A/C")
       ) {
-        console.log("🤖 Parsing SMS with AI...");
         setParsing(true);
 
         try {
           const result = await parseSms(rawSms);
 
-          console.log("✅ AI parsing result:", result);
 
           // Update form fields
           const parsedAmount = result.amount?.toString() || "";
@@ -144,7 +141,6 @@ export const PendingTransactionModal: React.FC<Props> = ({
     type: string;
   }) => {
     try {
-      console.log("💾 Auto-saving to pending transactions...", data);
 
       const authToken = localStorage.getItem("token");
       if (!authToken) {
@@ -155,7 +151,6 @@ export const PendingTransactionModal: React.FC<Props> = ({
       const result = await createPendingTransaction(authToken, data);
       setPendingToken(result.token);
 
-      console.log("✅ Saved to pending with token:", result.token);
     } catch (err) {
       console.error("❌ Failed to auto-save:", err);
       // Don't show error to user - they can still enter manually
@@ -180,7 +175,6 @@ export const PendingTransactionModal: React.FC<Props> = ({
     setError("");
 
     try {
-      console.log("💾 Confirming transaction...");
 
       // Use pendingToken if available, otherwise use token from URL
       const tokenToUse = pendingToken || token;
@@ -215,7 +209,6 @@ export const PendingTransactionModal: React.FC<Props> = ({
       const tokenToUse = pendingToken || token;
 
       await cancelPendingTransaction(tokenToUse);
-      console.log("✅ Transaction cancelled");
       onClose();
       navigate("/dashboard");
     } catch (err) {
