@@ -10,29 +10,18 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend,
   Filler,
 } from "chart.js";
-import { PieChart, LineChart as LineChartIcon } from "lucide-react";
+import { PieChart, Activity } from "lucide-react";
 
-ChartJS.register(
-  ArcElement,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+ChartJS.register(ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler);
 
 interface ChartsProps {
   expenses: Expense[];
 }
 
 export const Charts: React.FC<ChartsProps> = ({ expenses }) => {
-  // Category breakdown data
+  // 1. Prepare Category Data
   const categoryData = expenses
     .filter((e) => e.type === "expense")
     .reduce((acc, exp) => {
@@ -40,137 +29,108 @@ export const Charts: React.FC<ChartsProps> = ({ expenses }) => {
       return acc;
     }, {} as Record<string, number>);
 
+  const sortedCategories = Object.entries(categoryData)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5);
+
   const doughnutData = {
-    labels: Object.keys(categoryData),
-    datasets: [
-      {
-        data: Object.values(categoryData),
-        backgroundColor: [
-          "rgba(239, 68, 68, 0.8)",
-          "rgba(59, 130, 246, 0.8)",
-          "rgba(16, 185, 129, 0.8)",
-          "rgba(245, 158, 11, 0.8)",
-          "rgba(139, 92, 246, 0.8)",
-          "rgba(236, 72, 153, 0.8)",
-        ],
-        borderColor: [
-          "rgba(239, 68, 68, 1)",
-          "rgba(59, 130, 246, 1)",
-          "rgba(16, 185, 129, 1)",
-          "rgba(245, 158, 11, 1)",
-          "rgba(139, 92, 246, 1)",
-          "rgba(236, 72, 153, 1)",
-        ],
-        borderWidth: 2,
-      },
-    ],
+    labels: sortedCategories.map(([k]) => k),
+    datasets: [{
+      data: sortedCategories.map(([, v]) => v),
+      backgroundColor: ["#6366f1", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6"],
+      borderWidth: 0,
+      hoverOffset: 15,
+    }],
   };
 
-  // Monthly trend data
+  // 2. Prepare Trend Data
   const monthlyData = expenses.reduce((acc, exp) => {
-    const month = exp.date.substring(0, 7); // YYYY-MM
-    if (!acc[month]) {
-      acc[month] = { income: 0, expense: 0 };
-    }
-    if (exp.type === "income") {
-      acc[month].income += exp.amount;
-    } else {
-      acc[month].expense += exp.amount;
-    }
+    const date = new Date(exp.date);
+    const key = `${date.getMonth() + 1}/${date.getDate()}`;
+    if (!acc[key]) acc[key] = 0;
+    if (exp.type === "expense") acc[key] += exp.amount;
     return acc;
-  }, {} as Record<string, { income: number; expense: number }>);
+  }, {} as Record<string, number>);
 
-  const sortedMonths = Object.keys(monthlyData).sort();
-  const last6Months = sortedMonths.slice(-6);
+  const sortedDates = Object.keys(monthlyData).sort().slice(-7);
 
   const lineData = {
-    labels: last6Months.map((m) => {
-      const [year, month] = m.split("-");
-      return new Date(Number(year), Number(month) - 1).toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      });
-    }),
-    datasets: [
-      {
-        label: "Income",
-        data: last6Months.map((m) => monthlyData[m]?.income || 0),
-        borderColor: "rgba(16, 185, 129, 1)",
-        backgroundColor: "rgba(16, 185, 129, 0.1)",
-        fill: true,
-        tension: 0.4,
+    labels: sortedDates,
+    datasets: [{
+      fill: true,
+      data: sortedDates.map(d => monthlyData[d]),
+      borderColor: "#6366f1",
+      backgroundColor: (context: any) => {
+        const ctx = context.chart.ctx;
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, "rgba(99, 102, 241, 0.3)");
+        gradient.addColorStop(1, "rgba(99, 102, 241, 0)");
+        return gradient;
       },
-      {
-        label: "Expenses",
-        data: last6Months.map((m) => monthlyData[m]?.expense || 0),
-        borderColor: "rgba(239, 68, 68, 1)",
-        backgroundColor: "rgba(239, 68, 68, 0.1)",
-        fill: true,
-        tension: 0.4,
-      },
-    ],
+      tension: 0.4,
+      pointRadius: 4,
+      pointBackgroundColor: "#fff",
+      pointBorderColor: "#6366f1",
+      pointBorderWidth: 2,
+    }],
   };
 
-  const chartOptions = {
+  const options = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "bottom" as const,
-        labels: {
-          usePointStyle: true,
-          padding: 15,
-          font: {
-            size: 12,
-          },
-        },
-      },
-    },
+    plugins: { legend: { display: false } },
+    scales: { x: { display: false }, y: { display: false, beginAtZero: true } }
   };
 
   if (expenses.length === 0) {
     return (
-      <div className="glass-card p-8 text-center">
-        <p className="text-gray-500 dark:text-gray-400">
-          Add some transactions to see charts and insights 📊
-        </p>
+      <div className="h-full grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[1, 2].map((i) => (
+          <div key={i} className="glass-panel p-6 flex flex-col items-center justify-center text-center opacity-70">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+               <Activity className="w-8 h-8 text-slate-300" />
+            </div>
+            <p className="text-sm text-slate-500 font-medium">Add data to see charts</p>
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up">
-      {/* Category Breakdown */}
-      <div className="glass-card p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <PieChart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-lg font-semibold">Expense Breakdown</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+      {/* Donut Chart */}
+      <div className="glass-panel p-6 flex flex-col relative group">
+        <div className="flex justify-between items-center mb-2">
+           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+             <PieChart size={16} /> Spending Mix
+           </h3>
         </div>
-        <div className="chart-container">
-          {Object.keys(categoryData).length > 0 ? (
-            <Doughnut data={doughnutData} options={chartOptions} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-              No expense data available
-            </div>
-          )}
+        
+        <div className="flex-1 flex items-center justify-center relative">
+          <div className="w-48 h-48 relative z-10 transition-transform duration-500 group-hover:scale-105">
+            <Doughnut data={doughnutData} options={{...options, cutout: '80%'}} />
+          </div>
+          {/* Center Stats */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-3xl font-black text-slate-800 dark:text-slate-100">{Object.keys(categoryData).length}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Categories</span>
+          </div>
         </div>
       </div>
 
-      {/* Monthly Trend */}
-      <div className="glass-card p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <LineChartIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-lg font-semibold">Monthly Trend</h3>
+      {/* Line Chart */}
+      <div className="glass-panel p-6 flex flex-col group">
+        <div className="flex justify-between items-center mb-4">
+           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+             <Activity size={16} /> 7-Day Trend
+           </h3>
+           <span className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg">
+             Live
+           </span>
         </div>
-        <div className="chart-container">
-          {last6Months.length > 0 ? (
-            <Line data={lineData} options={chartOptions} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-              No trend data available
-            </div>
-          )}
+        <div className="flex-1 w-full min-h-[150px] transition-transform duration-500 group-hover:scale-[1.02]">
+          <Line data={lineData} options={options} />
         </div>
       </div>
     </div>

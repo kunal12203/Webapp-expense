@@ -305,7 +305,10 @@ async def generate_expense_url_from_sms(
     
     # Store parsed data in pending transaction for reference
     pending.amount = data.get("amount")
-    pending.note = data.get("merchant")
+    pending.description = data.get("merchant")  # ✅ Fixed: use 'description' not 'note'
+    pending.category = data.get("category")
+    pending.date = data.get("date")
+    pending.type = "income" if data.get("transaction_type") == "credit" else "expense"
     db.commit()
     
     # Redirect to the final URL

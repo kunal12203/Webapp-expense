@@ -1,156 +1,233 @@
-import { useState } from "react";
-import { Mail, KeyRound, ArrowLeft, Copy, CheckCircle2 } from "lucide-react";
-import { forgotPassword } from "../services/api";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 
-interface ForgotPasswordProps {
-  onBack: () => void;
-  onResetPassword?: () => void;
-}
-
-export default function ForgotPassword({ onBack, onResetPassword }: ForgotPasswordProps) {
-  const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [copied, setCopied] = useState(false);
+export default function ForgotPassword() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [devModeUrl, setDevModeUrl] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setMessage('');
+    setError('');
+    setIsLoading(true);
 
     try {
-      const result = await forgotPassword(email);
-      setToken(result.token);
-      setSuccess(true);
+      const response = await fetch('http://localhost:8000/api/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.email_sent) {
+          // Production mode: Email was sent
+          setEmailSent(true);
+          setMessage(`Password reset instructions have been sent to ${email}`);
+        } else {
+          // Development mode: Email not configured
+          setDevModeUrl(data.reset_url || null);
+          setMessage(data.message || 'Check the link below to reset your password');
+        }
+      } else {
+        setError(data.detail || 'Failed to send reset instructions. Please try again.');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process request");
+      setError('An error occurred. Please try again.');
+      console.error('Forgot password error:', err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleCopyToken = () => {
-    navigator.clipboard.writeText(token);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-float" style={{ animationDelay: "1s" }} />
-      </div>
-
-      <div className="w-full max-w-md relative z-10 animate-scale-in">
-        <div className="glass-card p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center animate-float">
-              <KeyRound className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-              {success ? "Reset Token Generated" : "Forgot Password"}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              {success ? "Copy your reset token below" : "Enter your email to receive a reset token"}
-            </p>
-          </div>
-
-          {!success ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  <Mail className="w-4 h-4" />
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input"
-                  placeholder="Enter your email"
-                  required
-                />
+  // Success Screen (Email Sent)
+  if (emailSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-emerald-100 p-8">
+            <div className="flex flex-col items-center text-center">
+              {/* Success Icon */}
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4 animate-bounce">
+                <CheckCircle className="w-8 h-8 text-emerald-600" />
+              </div>
+              
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                Check Your Email
+              </h2>
+              
+              <p className="text-gray-600 mb-6">
+                {message}
+              </p>
+              
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 w-full">
+                <div className="flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-emerald-900 mb-1">
+                      What to do next:
+                    </p>
+                    <ol className="text-sm text-emerald-700 space-y-1 list-decimal list-inside">
+                      <li>Check your email inbox</li>
+                      <li>Click the reset link in the email</li>
+                      <li>Enter your new password</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
 
-              {error && (
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl text-red-700 dark:text-red-300 text-sm">
-                  {error}
-                </div>
-              )}
-
+              <p className="text-xs text-gray-500 mb-6">
+                Didn't receive an email? Check your spam folder or try again.
+              </p>
+              
               <button
-                type="submit"
-                disabled={loading}
-                className="btn btn-primary w-full"
+                onClick={() => navigate('/login')}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Get Reset Token"
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={onBack}
-                className="w-full flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
                 Back to Login
               </button>
-            </form>
-          ) : (
-            <div className="space-y-5">
-              <div className="p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-xl">
-                <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-semibold mb-3">
-                  <CheckCircle2 className="w-5 h-5" />
-                  Token Generated Successfully
-                </div>
-                <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                  Copy this token and use it on the reset password page:
-                </p>
-                <div className="relative">
-                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-green-300 dark:border-green-700 font-mono text-sm break-all">
-                    {token}
-                  </div>
-                  <button
-                    onClick={handleCopyToken}
-                    className="absolute top-2 right-2 p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                    title="Copy token"
-                  >
-                    {copied ? (
-                      <CheckCircle2 className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Development Mode (Email Not Configured)
+  if (devModeUrl) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-amber-100 p-8">
+            <div className="flex flex-col items-center text-center">
+              {/* Warning Icon */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-amber-600" />
+              </div>
+              
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                Development Mode
+              </h2>
+              
+              <p className="text-gray-600 mb-6">
+                Email is not configured. Use the link below to reset your password:
+              </p>
+              
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 w-full">
+                <p className="text-xs font-medium text-amber-900 mb-2">Reset Link:</p>
+                <a
+                  href={devModeUrl}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline break-all"
+                >
+                  {devModeUrl}
+                </a>
               </div>
 
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-300">
-                <strong>Note:</strong> This token expires in 1 hour and can only be used once. In a production app, this would be sent to your email.
-              </div>
-
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+                ⚠️ In production, this link will be sent via email
+              </p>
+              
               <button
-                onClick={onResetPassword || onBack}
-                className="btn btn-primary w-full"
+                onClick={() => navigate('/login')}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                Continue to Reset Password
+                Back to Login
               </button>
             </div>
-          )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Forgot Password Form
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 px-4">
+      <div className="max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl mb-4 shadow-lg">
+            <Mail className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            Forgot Password?
+          </h1>
+          <p className="text-gray-600">
+            No worries! Enter your email and we'll send you reset instructions.
+          </p>
         </div>
 
-        {/* Additional Info */}
-        <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-500">
-          Secure password recovery
+        {/* Form */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-purple-100 p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                placeholder="your-email@example.com"
+              />
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Sending Instructions...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-5 h-5" />
+                  Send Reset Instructions
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Back to Login */}
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => navigate('/login')}
+              className="text-purple-600 hover:text-purple-700 font-medium transition-colors inline-flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Login
+            </button>
+          </div>
+        </div>
+
+        {/* Security Note */}
+        <div className="mt-6 text-center text-sm text-gray-500">
+          <p>🔒 Your information is secure and encrypted</p>
         </div>
       </div>
     </div>

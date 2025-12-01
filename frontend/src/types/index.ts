@@ -9,6 +9,7 @@ export interface Expense {
 }
 
 export interface User {
+  id: number;
   username: string;
   email: string;
 }
@@ -16,4 +17,15 @@ export interface User {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+}
+
+export interface PendingTransaction {
+  id: number;
+  token: string;
+  amount: number | null;
+  category: string | null;
+  description: string | null;
+  date: string | null;
+  type: string | null;
+  status: string;
 }

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { LogIn, User, Lock, Sparkles } from "lucide-react";
+import { LogIn, User, Lock, Sparkles, ArrowRight } from "lucide-react";
 
 interface LoginProps {
-  onLogin: (username: string, password: string) => Promise<void>;
+  onLogin: (u: string, p: string) => Promise<void>;
   onSwitchToSignup: () => void;
   onForgotPassword?: () => void;
   error: string;
@@ -16,118 +16,61 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToSignup, onForgo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      await onLogin(username, password);
-    } finally {
-      setLoading(false);
-    }
+    try { await onLogin(username, password); } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-float" style={{ animationDelay: "1s" }} />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-50 dark:bg-[#020617]">
+      {/* Dynamic Background */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[100px] animate-float" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] animate-float" style={{ animationDelay: "4s" }} />
       </div>
 
-      <div className="w-full max-w-md relative z-10 animate-scale-in">
-        <div className="glass-card p-8">
-          {/* Header */}
+      <div className="w-full max-w-sm relative z-10 animate-scale-spring">
+        <div className="glass-panel p-10 shadow-2xl shadow-indigo-500/10">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center animate-float">
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-4 ring-indigo-50 dark:ring-indigo-900/20">
+              <Sparkles className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-              Welcome Back
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Sign in to continue to your dashboard
-            </p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Welcome Back</h2>
+            <p className="text-slate-500 font-medium mt-2">Sign in to your dashboard</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                <User className="w-4 h-4" />
-                Username
-              </label>
-              <input
-                type="text"
-                className="input"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                required
-              />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Username</label>
+              <div className="relative group">
+                <User className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <input type="text" className="input pl-12" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" required />
+              </div>
             </div>
 
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                <Lock className="w-4 h-4" />
-                Password
-              </label>
-              <input
-                type="password"
-                className="input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <input type="password" className="input pl-12" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              </div>
               {onForgotPassword && (
-                <div className="mt-2 text-right">
-                  <button
-                    type="button"
-                    onClick={onForgotPassword}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
+                <div className="flex justify-end">
+                  <button type="button" onClick={onForgotPassword} className="text-xs text-indigo-600 font-bold hover:underline">
                     Forgot password?
                   </button>
                 </div>
               )}
             </div>
 
-            {error && (
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl text-red-700 dark:text-red-300 text-sm">
-                {error}
-              </div>
-            )}
+            {error && <div className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-sm rounded-xl font-bold border border-rose-100 dark:border-rose-900/50">{error}</div>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  Sign In
-                </>
-              )}
+            <button type="submit" disabled={loading} className="btn btn-primary w-full py-4 text-base shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
+              {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Sign In <ArrowRight className="w-5 h-5" /></>}
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{" "}
-            <button
-              onClick={onSwitchToSignup}
-              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Sign up
-            </button>
+          <div className="mt-8 text-center">
+            <p className="text-sm text-slate-500">Don't have an account? <button onClick={onSwitchToSignup} className="font-bold text-indigo-600 hover:text-indigo-500 transition-colors">Create Account</button></p>
           </div>
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-500">
-          Secure expense tracking with modern technology
         </div>
       </div>
     </div>

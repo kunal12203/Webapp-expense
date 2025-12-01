@@ -23,32 +23,24 @@ function AppContent() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSignup = async (
-    username: string,
-    email: string,
-    password: string
-  ) => {
+  const handleSignup = async (u: string, e: string, p: string) => {
     try {
       setError("");
-      const data = await signup(username, email, password);
+      const data = await signup(u, e, p);
       localStorage.setItem("token", data.access_token);
       setToken(data.access_token);
       navigate("/dashboard");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Signup failed");
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Signup failed"); }
   };
 
-  const handleLogin = async (username: string, password: string) => {
+  const handleLogin = async (u: string, p: string) => {
     try {
       setError("");
-      const data = await login(username, password);
+      const data = await login(u, p);
       localStorage.setItem("token", data.access_token);
       setToken(data.access_token);
       navigate("/dashboard");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Login failed"); }
   };
 
   const handleLogout = () => {
@@ -59,82 +51,14 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          token ? (
-            <Dashboard token={token} onLogout={handleLogout} />
-          ) : (
-            <Login
-              onLogin={handleLogin}
-              onSwitchToSignup={() => navigate("/signup")}
-              onForgotPassword={() => navigate("/forgot-password")}
-              error={error}
-            />
-          )
-        }
-      />
-
-      <Route
-        path="/login"
-        element={
-          <Login
-            onLogin={handleLogin}
-            onSwitchToSignup={() => navigate("/signup")}
-            onForgotPassword={() => navigate("/forgot-password")}
-            error={error}
-          />
-        }
-      />
-
-      <Route
-        path="/forgot-password"
-        element={
-          <ForgotPassword
-            onBack={() => navigate("/login")}
-            onResetPassword={() => navigate("/reset-password")}
-          />
-        }
-      />
-
-      <Route
-        path="/reset-password"
-        element={
-          <ResetPassword
-            onBack={() => navigate("/login")}
-            onSuccess={() => navigate("/login")}
-          />
-        }
-      />
-
-      <Route
-        path="/signup"
-        element={
-          <Signup
-            onSignup={handleSignup}
-            onSwitchToLogin={() => navigate("/login")}
-            error={error}
-          />
-        }
-      />
-
-      <Route
-        path="/dashboard"
-        element={
-          token ? (
-            <Dashboard token={token} onLogout={handleLogout} />
-          ) : (
-            <Login
-              onLogin={handleLogin}
-              onSwitchToSignup={() => navigate("/signup")}
-              onForgotPassword={() => navigate("/forgot-password")}
-              error={error}
-            />
-          )
-        }
-      />
-
-      {/* Deep link route for pending transactions */}
+      <Route path="/" element={token ? <Dashboard token={token} onLogout={handleLogout} /> : <Login onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} onForgotPassword={() => navigate("/forgot-password")} error={error} />} />
+      <Route path="/login" element={<Login onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} onForgotPassword={() => navigate("/forgot-password")} error={error} />} />
+      <Route path="/signup" element={<Signup onSignup={handleSignup} onSwitchToLogin={() => navigate("/login")} error={error} />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/dashboard" element={token ? <Dashboard token={token} onLogout={handleLogout} /> : <Login onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} onForgotPassword={() => navigate("/forgot-password")} error={error} />} />
+      
+      {/* Deep link route - Wrapped in a clean container */}
       <Route path="/add-expense/:token" element={<PendingExpensePage />} />
     </Routes>
   );
@@ -144,18 +68,13 @@ function PendingExpensePage() {
   const { token } = useParams();
   const navigate = useNavigate();
 
-  if (!token) {
-    navigate("/login");
-    return null;
-  }
+  // If accessed directly without params, it acts as a quick entry portal
+  if (!token) { navigate("/login"); return null; }
 
-  // ✅ Query params are automatically read by useSearchParams() in the modal
-  // No need to extract anything here!
   return (
-    <PendingTransactionModal
-      token={token}
-      onClose={() => navigate("/dashboard")}
-    />
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <PendingTransactionModal token={token} onClose={() => navigate("/dashboard")} />
+    </div>
   );
 }
 

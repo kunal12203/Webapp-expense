@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Expense } from "../types";
-import { Save, X, DollarSign, Calendar, Tag, FileText, TrendingUp } from "lucide-react";
+import { Save, X, Tag, Calendar, FileText, IndianRupee } from "lucide-react";
 
 interface ExpenseFormProps {
-  onSubmit: (
-    amount: number,
-    category: string,
-    description: string,
-    date: string,
-    type: "expense" | "income"
-  ) => Promise<void>;
+  onSubmit: (amount: number, category: string, description: string, date: string, type: "expense" | "income") => Promise<void>;
   onCancel: () => void;
   editingExpense: Expense | null;
   error: string;
@@ -17,21 +11,7 @@ interface ExpenseFormProps {
 
 const categories = ["Food", "Transport", "Shopping", "Bills", "Entertainment", "Other"];
 
-const categoryIcons: Record<string, string> = {
-  Food: "🍔",
-  Transport: "🚗",
-  Shopping: "🛍️",
-  Bills: "📄",
-  Entertainment: "🎬",
-  Other: "📦",
-};
-
-export const ExpenseForm: React.FC<ExpenseFormProps> = ({
-  onSubmit,
-  onCancel,
-  editingExpense,
-  error,
-}) => {
+export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSubmit, onCancel, editingExpense, error }) => {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Food");
   const [description, setDescription] = useState("");
@@ -45,7 +25,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       setCategory(editingExpense.category);
       setDescription(editingExpense.description);
       setDate(editingExpense.date);
-      setType(editingExpense.type);
+      setType(editingExpense.type as "expense" | "income");
     }
   }, [editingExpense]);
 
@@ -60,135 +40,89 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   };
 
   return (
-    <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          {editingExpense ? "Edit Transaction" : "New Transaction"}
+    <div className="glass-panel p-0 overflow-hidden shadow-2xl shadow-indigo-500/20">
+      {/* Header */}
+      <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md">
+        <h3 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">
+          {editingExpense ? "Edit Transaction" : "New Entry"}
         </h3>
-        <button onClick={onCancel} className="btn btn-ghost w-10 h-10 p-0 flex items-center justify-center">
-          <X className="w-5 h-5" />
+        <button onClick={onCancel} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors">
+          <X size={18} />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Type Selection */}
-        <div className="grid grid-cols-2 gap-3">
+      <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-white/80 dark:bg-slate-900/80">
+        {/* Type Toggle */}
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl relative">
+          <div 
+            className={`absolute top-1 bottom-1 w-[48%] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-all duration-300 ease-spring ${type === 'income' ? 'left-[50%]' : 'left-1'}`} 
+          />
           <button
             type="button"
             onClick={() => setType("expense")}
-            className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
-              type === "expense"
-                ? "bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-            }`}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-lg relative z-10 transition-colors ${type === "expense" ? "text-rose-600" : "text-slate-500 hover:text-slate-700"}`}
           >
-            💸 Expense
+            Expense
           </button>
           <button
             type="button"
             onClick={() => setType("income")}
-            className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 ${
-              type === "income"
-                ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-            }`}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-lg relative z-10 transition-colors ${type === "income" ? "text-emerald-600" : "text-slate-500 hover:text-slate-700"}`}
           >
-            💰 Income
+            Income
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Amount */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              <DollarSign className="w-4 h-4" />
-              Amount (₹)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              className="input"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              required
-            />
-          </div>
+        {/* Amount */}
+        <div className="relative group">
+           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Amount</label>
+           <div className="relative">
+             <IndianRupee className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+             <input
+               type="number" step="0.01" 
+               className="input pl-12 text-lg font-bold"
+               value={amount} onChange={(e) => setAmount(e.target.value)}
+               placeholder="0.00" required autoFocus
+             />
+           </div>
+        </div>
 
-          {/* Category */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              <Tag className="w-4 h-4" />
-              Category
-            </label>
-            <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {categoryIcons[cat]} {cat}
-                </option>
-              ))}
-            </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="group">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Category</label>
+            <div className="relative">
+              <Tag className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <select className="input pl-10" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
           </div>
-
-          {/* Date */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              <Calendar className="w-4 h-4" />
-              Date
-            </label>
-            <input
-              type="date"
-              className="input"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
+          <div className="group">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <input type="date" className="input pl-10" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </div>
           </div>
+        </div>
 
-          {/* Description */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-              <FileText className="w-4 h-4" />
-              Description
-            </label>
+        <div className="group">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Description</label>
+          <div className="relative">
+            <FileText className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <input
-              type="text"
-              className="input"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter description"
-              required
+              type="text" className="input pl-10"
+              value={description} onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Grocery shopping" required
             />
           </div>
         </div>
 
-        {error && (
-          <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl text-red-700 dark:text-red-300 text-sm">
-            {error}
-          </div>
-        )}
+        {error && <p className="text-xs text-rose-500 font-bold bg-rose-50 p-2 rounded-lg">{error}</p>}
 
-        <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary flex-1 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                {editingExpense ? "Update" : "Save"}
-              </>
-            )}
-          </button>
-          <button type="button" onClick={onCancel} className="btn btn-ghost flex items-center gap-2">
-            <X className="w-4 h-4" />
-            Cancel
+        <div className="pt-2">
+          <button type="submit" disabled={loading} className="btn btn-primary w-full py-3.5 shadow-xl shadow-indigo-500/20 hover:scale-[1.02]">
+            {loading ? "Saving..." : <><Save size={18} /> Save Transaction</>}
           </button>
         </div>
       </form>
