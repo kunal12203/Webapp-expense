@@ -1,128 +1,253 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { X, DollarSign, Tag, FileText, Calendar, TrendingUp, TrendingDown } from "lucide-react";
 import { Expense } from "../types";
-import { Save, X, Tag, Calendar, FileText, IndianRupee } from "lucide-react";
 
-interface ExpenseFormProps {
-  onSubmit: (amount: number, category: string, description: string, date: string, type: "expense" | "income") => Promise<void>;
+interface Category {
+  id: number;
+  name: string;
+  color: string;
+  icon: string;
+}
+
+interface Props {
+  onSubmit: (amount: number, category: string, description: string, date: string, type: "expense" | "income") => void;
   onCancel: () => void;
   editingExpense: Expense | null;
   error: string;
 }
 
-const categories = ["Food", "Transport", "Shopping", "Bills", "Entertainment", "Other"];
+export const ExpenseForm: React.FC<Props> = ({ onSubmit, onCancel, editingExpense, error }) => {
+  // ✅ NEW: Fetch categories from API
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  
+  // Form state
+  const [amount, setAmount] = useState(editingExpense?.amount?.toString() || "");
+  const [category, setCategory] = useState(editingExpense?.category || "");
+  const [description, setDescription] = useState(editingExpense?.description || "");
+  const [date, setDate] = useState(editingExpense?.date || new Date().toISOString().split("T")[0]);
+  const [type, setType] = useState<"expense" | "income">(editingExpense?.type || "expense");
 
-export const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSubmit, onCancel, editingExpense, error }) => {
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Food");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [type, setType] = useState<"expense" | "income">("expense");
-  const [loading, setLoading] = useState(false);
-
+  // ✅ NEW: Load categories on mount
   useEffect(() => {
-    if (editingExpense) {
-      setAmount(editingExpense.amount.toString());
-      setCategory(editingExpense.category);
-      setDescription(editingExpense.description);
-      setDate(editingExpense.date);
-      setType(editingExpense.type as "expense" | "income");
-    }
-  }, [editingExpense]);
+    loadCategories();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // ✅ NEW: Function to load categories
+  const loadCategories = async () => {
     try {
-      await onSubmit(parseFloat(amount), category, description, date, type);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/categories', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data);
+        
+        // Set first category as default if not editing and no category selected
+        if (!editingExpense && !category && data.length > 0) {
+          setCategory(data[0].name);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load categories:', err);
     } finally {
-      setLoading(false);
+      setLoadingCategories(false);
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(parseFloat(amount), category, description, date, type);
+  };
+
   return (
-    <div className="glass-panel p-0 overflow-hidden shadow-2xl shadow-indigo-500/20">
-      {/* Header */}
-      <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md">
-        <h3 className="text-lg font-black text-slate-800 dark:text-white tracking-tight">
-          {editingExpense ? "Edit Transaction" : "New Entry"}
+    <div className="glass-panel p-6 animate-scale-spring">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-bold text-slate-800 dark:text-white">
+          {editingExpense ? "Edit Transaction" : "New Transaction"}
         </h3>
-        <button onClick={onCancel} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors">
-          <X size={18} />
+        <button
+          onClick={onCancel}
+          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5 text-slate-500" />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-white/80 dark:bg-slate-900/80">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Type Toggle */}
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl relative">
-          <div 
-            className={`absolute top-1 bottom-1 w-[48%] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-all duration-300 ease-spring ${type === 'income' ? 'left-[50%]' : 'left-1'}`} 
-          />
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setType("expense")}
-            className={`flex-1 py-2.5 text-sm font-bold rounded-lg relative z-10 transition-colors ${type === "expense" ? "text-rose-600" : "text-slate-500 hover:text-slate-700"}`}
+            className={`p-4 rounded-xl border-2 transition-all ${
+              type === "expense"
+                ? "border-rose-500 bg-rose-50 dark:bg-rose-900/20"
+                : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+            }`}
           >
-            Expense
+            <TrendingDown
+              className={`w-6 h-6 mx-auto mb-2 ${
+                type === "expense" ? "text-rose-600" : "text-slate-400"
+              }`}
+            />
+            <p
+              className={`font-semibold text-sm ${
+                type === "expense" ? "text-rose-700 dark:text-rose-400" : "text-slate-600 dark:text-slate-400"
+              }`}
+            >
+              Expense
+            </p>
           </button>
+
           <button
             type="button"
             onClick={() => setType("income")}
-            className={`flex-1 py-2.5 text-sm font-bold rounded-lg relative z-10 transition-colors ${type === "income" ? "text-emerald-600" : "text-slate-500 hover:text-slate-700"}`}
+            className={`p-4 rounded-xl border-2 transition-all ${
+              type === "income"
+                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
+                : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
+            }`}
           >
-            Income
+            <TrendingUp
+              className={`w-6 h-6 mx-auto mb-2 ${
+                type === "income" ? "text-emerald-600" : "text-slate-400"
+              }`}
+            />
+            <p
+              className={`font-semibold text-sm ${
+                type === "income" ? "text-emerald-700 dark:text-emerald-400" : "text-slate-600 dark:text-slate-400"
+              }`}
+            >
+              Income
+            </p>
           </button>
         </div>
 
         {/* Amount */}
-        <div className="relative group">
-           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Amount</label>
-           <div className="relative">
-             <IndianRupee className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-             <input
-               type="number" step="0.01" 
-               className="input pl-12 text-lg font-bold"
-               value={amount} onChange={(e) => setAmount(e.target.value)}
-               placeholder="0.00" required autoFocus
-             />
-           </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <DollarSign className="w-4 h-4 inline mr-1" />
+            Amount
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-800 dark:text-white transition-all"
+            placeholder="0.00"
+          />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="group">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Category</label>
-            <div className="relative">
-              <Tag className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              <select className="input pl-10" value={category} onChange={(e) => setCategory(e.target.value)}>
-                {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
+        {/* ✅ UPDATED: Dynamic Category Dropdown */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <Tag className="w-4 h-4 inline mr-1" />
+            Category
+          </label>
+          {loadingCategories ? (
+            <div className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+              Loading categories...
             </div>
-          </div>
-          <div className="group">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Date</label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              <input type="date" className="input pl-10" value={date} onChange={(e) => setDate(e.target.value)} required />
+          ) : categories.length === 0 ? (
+            <div className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+              No categories available
             </div>
-          </div>
+          ) : (
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-800 dark:text-white transition-all"
+            >
+              <option value="">Select category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.icon} {cat.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
-        <div className="group">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">Description</label>
-          <div className="relative">
-            <FileText className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-            <input
-              type="text" className="input pl-10"
-              value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Grocery shopping" required
-            />
-          </div>
+        {/* ✅ NEW: Visual Category Pills (Optional) */}
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setCategory(cat.name)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                category === cat.name
+                  ? 'ring-2 ring-indigo-500 shadow-md scale-105'
+                  : 'hover:scale-105'
+              }`}
+              style={{
+                backgroundColor: category === cat.name ? cat.color : cat.color + '30',
+                color: category === cat.name ? '#ffffff' : '#1e293b'
+              }}
+            >
+              {cat.icon} {cat.name}
+            </button>
+          ))}
         </div>
 
-        {error && <p className="text-xs text-rose-500 font-bold bg-rose-50 p-2 rounded-lg">{error}</p>}
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <FileText className="w-4 h-4 inline mr-1" />
+            Description
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-800 dark:text-white transition-all"
+            placeholder="What was this for?"
+          />
+        </div>
 
-        <div className="pt-2">
-          <button type="submit" disabled={loading} className="btn btn-primary w-full py-3.5 shadow-xl shadow-indigo-500/20 hover:scale-[1.02]">
-            {loading ? "Saving..." : <><Save size={18} /> Save Transaction</>}
+        {/* Date */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <Calendar className="w-4 h-4 inline mr-1" />
+            Date
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-800 dark:text-white transition-all"
+          />
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg">
+            <p className="text-sm text-rose-700 dark:text-rose-400">{error}</p>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 px-6 py-3 border border-slate-300 dark:border-slate-600 rounded-xl font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="flex-1 btn btn-primary"
+          >
+            {editingExpense ? "Update" : "Add"} Transaction
           </button>
         </div>
       </form>
