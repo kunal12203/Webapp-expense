@@ -6,6 +6,21 @@
   body {
     @apply bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 font-sans antialiased min-h-screen selection:bg-indigo-500/30;
     overflow-x: hidden;
+    /* Safe area insets for iOS */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Touch optimization */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  input, button, select, textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
   }
 }
 
@@ -63,6 +78,12 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-indigo-400;
+  }
+  
+  /* --- Safe Area Insets --- */
+  .safe-area-inset {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 

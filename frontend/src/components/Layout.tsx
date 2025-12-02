@@ -64,36 +64,36 @@ const Layout = () => {
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-72 bg-slate-50/50 dark:bg-[#0b1120]/50 backdrop-blur-xl border-r border-white/20 dark:border-slate-800
-        transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static
+        fixed inset-y-0 left-0 z-40 w-64 sm:w-72 bg-slate-50/50 dark:bg-[#0b1120]/50 backdrop-blur-xl border-r border-white/20 dark:border-slate-800
+        transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col h-full p-6">
+        <div className="flex flex-col h-full p-4 sm:p-6 safe-area-inset">
           {/* Logo Area */}
-          <div className="hidden md:flex items-center gap-3 mb-10 px-2">
-            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
-              <Wallet className="w-6 h-6 text-white" />
+          <div className="hidden lg:flex items-center gap-3 mb-8 lg:mb-10 px-2">
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2.5 sm:p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
+              <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-xl text-slate-800 dark:text-white leading-none">Expense</h1>
-              <span className="text-xs font-semibold text-indigo-500 tracking-widest uppercase">Tracker</span>
+              <h1 className="font-bold text-lg sm:text-xl text-slate-800 dark:text-white leading-none">Expense</h1>
+              <span className="text-[10px] sm:text-xs font-semibold text-indigo-500 tracking-widest uppercase">Tracker</span>
             </div>
           </div>
 
           {/* Nav Links */}
-          <nav className="flex-1 space-y-2 py-4 md:py-0">
+          <nav className="flex-1 space-y-1.5 sm:space-y-2 py-4 lg:py-0">
             <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
             <NavItem to="/analytics" icon={PieChart} label="Analytics" />
             <NavItem to="/profile" icon={User} label="Profile" />
           </nav>
 
           {/* User Card / Logout */}
-          <div className="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
+          <div className="mt-auto pt-4 sm:pt-6 border-t border-slate-200 dark:border-slate-800">
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-5 py-4 rounded-2xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/10 transition-all group"
+              className="flex items-center gap-3 w-full px-4 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/10 transition-all group text-sm sm:text-base"
             >
-              <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               <span className="font-semibold">Sign Out</span>
             </button>
           </div>
@@ -101,15 +101,15 @@ const Layout = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full md:max-w-[calc(100vw-18rem)] min-h-screen overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-4 md:p-8 pt-20 md:pt-8 animate-fade-in">
+      <main className="flex-1 w-full lg:max-w-[calc(100vw-18rem)] min-h-screen overflow-y-auto overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8 lg:px-8 pt-20 lg:pt-8 animate-fade-in safe-area-inset">
           <Outlet />
         </div>
       </main>
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
       )}
     </div>
   );

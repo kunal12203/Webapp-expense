@@ -60,32 +60,32 @@ const Dashboard = () => {
   }, [refreshSignal]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 animate-slide-up">
-        <div>
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">
-            <Calendar className="w-4 h-4" />
-            <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 md:gap-4 animate-slide-up">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium mb-1">
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="line-clamp-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
             Financial <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">Overview</span>
           </h1>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <button 
             onClick={updateAll} 
-            className="p-3 rounded-xl bg-white dark:bg-slate-800 text-slate-600 hover:text-indigo-600 hover:shadow-lg transition-all border border-slate-200 dark:border-slate-700"
+            className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-slate-800 text-slate-600 hover:text-indigo-600 hover:shadow-lg transition-all border border-slate-200 dark:border-slate-700"
             title="Refresh Data"
           >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={() => setShowCategoryManager(true)}
-            className="btn-ghost"
+            className="btn-ghost text-sm sm:text-base"
           >
-            <Settings className="w-4 h-4" /> Categories
+            <Settings className="w-4 h-4" /> <span className="hidden sm:inline">Categories</span>
           </button>
         </div>
       </div>
@@ -96,30 +96,30 @@ const Dashboard = () => {
       </div>
 
       {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8">
         
-        {/* Left Column: Quick Actions & Lists (7 cols) */}
-        <div className="xl:col-span-7 space-y-8 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        {/* Left Column: Quick Actions & Lists */}
+        <div className="lg:col-span-7 space-y-4 sm:space-y-6 md:space-y-8 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           
           {/* Input Area */}
-          <div className="glass-card p-1">
+          <div className="glass-card p-0.5 sm:p-1">
             <ExpenseForm onExpenseAdded={updateAll} />
           </div>
 
           {/* Transactions List */}
-          <div className="glass-card p-6 md:p-8 min-h-[500px]">
+          <div className="glass-card p-4 sm:p-6 md:p-8 min-h-[400px] sm:min-h-[500px]">
             <ExpenseList refreshSignal={refreshSignal} />
           </div>
         </div>
 
-        {/* Right Column: Analytics & Notifications (5 cols) */}
-        <div className="xl:col-span-5 space-y-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+        {/* Right Column: Analytics & Notifications */}
+        <div className="lg:col-span-5 space-y-4 sm:space-y-6 md:space-y-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
           
           {/* Pending Items (if any) */}
           <PendingTransactionSection onUpdate={updateAll} />
 
           {/* Charts */}
-          <div className="glass-card p-6 md:p-8 h-[500px]">
+          <div className="glass-card p-4 sm:p-6 md:p-8 h-[350px] sm:h-[400px] md:h-[500px]">
             <Charts refreshSignal={refreshSignal} />
           </div>
         </div>
