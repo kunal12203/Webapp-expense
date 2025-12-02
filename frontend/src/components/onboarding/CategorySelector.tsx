@@ -49,7 +49,7 @@ const CategorySelector = () => {
 
     setSaving(false);
 
-    navigate("/");
+    window.location.href = "/";
   };
 
   return (
