@@ -290,29 +290,42 @@ class CategoryMigration(Base):
 app = FastAPI(title="Expense Tracker API", version="3.0.0")
 app.include_router(sms_router)
 
-# CORS
+@app.on_event("startup")
+async def startup_event():
+    print("=" * 60)
+    print("🚀 EXPENSE TRACKER API STARTING UP")
+    print("=" * 60)
+    print(f"📍 Frontend URL: {FRONTEND_URL}")
+    print(f"📍 Database: {DATABASE_URL[:40]}...")
+    print(f"📧 Email enabled: {EMAIL_ENABLED}")
+    print(f"🔑 Secret key configured: {bool(SECRET_KEY and SECRET_KEY != 'your-secret-key-change-in-production-PLEASE')}")
+    print("=" * 60)
+
+# CORS Configuration
 allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
     "https://webapp-expense.vercel.app",
-    "https://webapp-expense-git-main-kunal12203s-projects.vercel.app",
-    "https://webapp-expense-jbhtflpoe-kunal12203s-projects.vercel.app",
-    "https://*.vercel.app"
 ]
 
 if FRONTEND_URL and FRONTEND_URL not in allowed_origins:
     allowed_origins.append(FRONTEND_URL)
+    print(f"✅ Added FRONTEND_URL to CORS: {FRONTEND_URL}")
 
-if any("vercel.app" in origin for origin in allowed_origins):
-    allowed_origins.append("https://*.vercel.app")
-
+# Use allow_origin_regex to handle all Vercel preview URLs
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Allows all Vercel subdomains
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+print(f"🔧 CORS configured with origins: {allowed_origins}")
+print(f"🔧 Also allowing all *.vercel.app subdomains via regex")
 
 # ==========================================
 # DEPENDENCIES
@@ -559,40 +572,64 @@ def signup(user: SignupWithProfile, db: Session = Depends(get_db)):
     Enhanced signup with profile information
     full_name is now REQUIRED
     """
-    # Check existing user
-    if db.query(User).filter(User.username == user.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
-    if db.query(User).filter(User.email == user.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
+    print(f"\n🔵 SIGNUP REQUEST RECEIVED")
+    print(f"   Username: {user.username}")
+    print(f"   Email: {user.email}")
+    print(f"   Full name: {user.full_name}")
     
-    # Validate full_name is provided
-    if not user.full_name or len(user.full_name.strip()) == 0:
-        raise HTTPException(status_code=400, detail="Full name is required")
-    
-    # Create user with profile data
-    hashed_password = get_password_hash(user.password)
-    new_user = User(
-        username=user.username,
-        email=user.email,
-        hashed_password=hashed_password,
-        full_name=user.full_name.strip(),
-        phone=user.phone,
-        date_of_birth=datetime.strptime(user.date_of_birth, "%Y-%m-%d").date() if user.date_of_birth else None,
-        occupation=user.occupation,
-        monthly_budget=user.monthly_budget,
-        onboarding_completed=False  # Will be set to True after category selection
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    # NO AUTO-CATEGORY CREATION - User will select during onboarding
-    
-    # Create token
-    access_token = create_access_token(data={"sub": new_user.username})
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        # Check existing user
+        if db.query(User).filter(User.username == user.username).first():
+            print(f"❌ Username already exists: {user.username}")
+            raise HTTPException(status_code=400, detail="Username already registered")
+        if db.query(User).filter(User.email == user.email).first():
+            print(f"❌ Email already exists: {user.email}")
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Validate full_name is provided
+        if not user.full_name or len(user.full_name.strip()) == 0:
+            print(f"❌ Full name is empty or invalid")
+            raise HTTPException(status_code=400, detail="Full name is required")
+        
+        print(f"✅ Validation passed, creating user...")
+        
+        # Create user with profile data
+        hashed_password = get_password_hash(user.password)
+        new_user = User(
+            username=user.username,
+            email=user.email,
+            hashed_password=hashed_password,
+            full_name=user.full_name.strip(),
+            phone=user.phone,
+            date_of_birth=datetime.strptime(user.date_of_birth, "%Y-%m-%d").date() if user.date_of_birth else None,
+            occupation=user.occupation,
+            monthly_budget=user.monthly_budget,
+            onboarding_completed=False  # Will be set to True after category selection
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        print(f"✅ User created successfully: {new_user.username} (ID: {new_user.id})")
+        
+        # NO AUTO-CATEGORY CREATION - User will select during onboarding
+        
+        # Create token
+        access_token = create_access_token(data={"sub": new_user.username})
+        
+        print(f"✅ Token generated for: {new_user.username}\n")
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except HTTPException as e:
+        print(f"❌ HTTP Exception: {e.status_code} - {e.detail}\n")
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in signup: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
