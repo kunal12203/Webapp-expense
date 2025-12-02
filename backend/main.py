@@ -20,6 +20,9 @@ from email.mime.multipart import MIMEMultipart
 import io
 import csv
 
+from sqlalchemy import func
+
+
 # Import SMS parser router
 from sms_parser_api import router as sms_router
 
@@ -913,7 +916,7 @@ def get_category_stats(
             Expense.user_id == current_user.id,
             Expense.category == category.name
         ).with_entities(
-            db.func.sum(Expense.amount)
+            func.sum(Expense.amount)
         ).scalar() or 0
         
         stats.append({
@@ -1433,15 +1436,14 @@ def create_categories_batch(
             skipped_count += 1
             continue
         
-        # Create category for user
         new_category = Category(
-            user_id=current_user.id,
-            name=example.name,
-            color=example.color,
-            icon=example.icon,
-            description=example.description,
-            is_custom=False  # Marks as selected from examples
-        )
+        user_id=current_user.id,
+        name=example.name,
+        color=example.color,
+        icon=example.icon,
+        # Remove this line: description=example.description,
+        # Remove this line: is_custom=False
+    )
         db.add(new_category)
         created_count += 1
     
