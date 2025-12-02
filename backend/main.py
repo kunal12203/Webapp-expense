@@ -301,66 +301,6 @@ class CategoryMigration(Base):
 app = FastAPI(title="Expense Tracker API", version="3.0.0")
 app.include_router(sms_router)
 
-# ==========================================
-# iOS SHORTCUT SMS PARSER ENDPOINT
-# ==========================================
-
-@app.get("/api/user/sms-parse")
-async def user_sms_parse(
-    sms: str = Query(..., description="SMS message text"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    User-specific SMS parser for iOS Shortcuts
-    Requires authentication token in Authorization header
-    
-    Usage from iOS Shortcut:
-    GET /api/user/sms-parse?sms=Your%20A/c%20debited%20Rs.500...
-    Headers: Authorization: Bearer {user_token}
-    
-    Returns:
-    {
-        "success": true,
-        "url": "https://webapp-expense.vercel.app/add-expense/{token}",
-        "parsed_data": {...}
-    }
-    """
-    from sms_parser_api import parse_sms_with_claude
-    import secrets
-    
-    # Parse SMS using Claude AI
-    parse_result = parse_sms_with_claude(sms)
-    
-    if not parse_result.get("success"):
-        raise HTTPException(status_code=400, detail="Failed to parse SMS")
-    
-    data = parse_result["data"]
-    
-    # Create pending transaction
-    pending = PendingTransaction(
-        user_id=current_user.id,
-        amount=data.get("amount"),
-        description=data.get("merchant", "Unknown"),
-        category=data.get("category", "Other"),
-        date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
-        type="income" if data.get("transaction_type") == "credit" else "expense",
-        token=secrets.token_urlsafe(16),
-        status="pending"
-    )
-    db.add(pending)
-    db.commit()
-    
-    # Return URL for the shortcut to open
-    expense_url = f"{FRONTEND_URL}/add-expense/{pending.token}"
-    
-    return {
-        "success": True,
-        "url": expense_url,
-        "parsed_data": data,
-        "confidence": data.get("confidence", 0.5)
-    }
-
 @app.on_event("startup")
 async def startup_event():
     print("=" * 60)
@@ -810,6 +750,66 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     db.commit()
     
     return {"message": "Password reset successful"}
+
+# ==========================================
+# iOS SHORTCUT SMS PARSER ENDPOINT
+# ==========================================
+
+@app.get("/api/user/sms-parse")
+async def user_sms_parse(
+    sms: str = Query(..., description="SMS message text"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    User-specific SMS parser for iOS Shortcuts
+    Requires authentication token in Authorization header
+    
+    Usage from iOS Shortcut:
+    GET /api/user/sms-parse?sms=Your%20A/c%20debited%20Rs.500...
+    Headers: Authorization: Bearer {user_token}
+    
+    Returns:
+    {
+        "success": true,
+        "url": "https://webapp-expense.vercel.app/add-expense/{token}",
+        "parsed_data": {...}
+    }
+    """
+    from sms_parser_api import parse_sms_with_claude
+    import secrets
+    
+    # Parse SMS using Claude AI
+    parse_result = parse_sms_with_claude(sms)
+    
+    if not parse_result.get("success"):
+        raise HTTPException(status_code=400, detail="Failed to parse SMS")
+    
+    data = parse_result["data"]
+    
+    # Create pending transaction
+    pending = PendingTransaction(
+        user_id=current_user.id,
+        amount=data.get("amount"),
+        description=data.get("merchant", "Unknown"),
+        category=data.get("category", "Other"),
+        date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
+        type="income" if data.get("transaction_type") == "credit" else "expense",
+        token=secrets.token_urlsafe(16),
+        status="pending"
+    )
+    db.add(pending)
+    db.commit()
+    
+    # Return URL for the shortcut to open
+    expense_url = f"{FRONTEND_URL}/add-expense/{pending.token}"
+    
+    return {
+        "success": True,
+        "url": expense_url,
+        "parsed_data": data,
+        "confidence": data.get("confidence", 0.5)
+    }
 
 # ==========================================
 # CATEGORY ROUTES
