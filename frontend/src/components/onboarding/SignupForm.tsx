@@ -79,7 +79,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
       if (!res.ok) throw new Error(data.detail || "Signup failed");
 
       localStorage.setItem("token", data.access_token);
-      onSignupSuccess(data.access_token, 0);
+      window.location.href = '/onboarding/categories';
+      // Remove: onSignupSuccess(data.access_token, 0);
     } catch (err: any) {
       setError(err.message || "Signup failed");
     } finally {
