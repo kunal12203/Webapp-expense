@@ -206,6 +206,83 @@ class CategoryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class UserProfile(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    occupation: Optional[str] = None
+    monthly_budget: Optional[float] = None
+
+class UserProfileResponse(BaseModel):
+    username: str
+    email: str
+    full_name: Optional[str]
+    phone: Optional[str]
+    date_of_birth: Optional[str]
+    occupation: Optional[str]
+    monthly_budget: Optional[float]
+    onboarding_completed: bool
+    created_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+class SignupWithProfile(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: str  # Required now!
+    phone: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    occupation: Optional[str] = None
+    monthly_budget: Optional[float] = None
+
+class ExampleCategoryResponse(BaseModel):
+    id: int
+    name: str
+    icon: str
+    color: str
+    description: Optional[str]
+    sort_order: int
+    
+    class Config:
+        from_attributes = True
+
+class CategoryBatchCreate(BaseModel):
+    category_ids: List[int]  # Example category IDs to add
+
+class CategoryMigrateRequest(BaseModel):
+    from_category_name: str
+    to_category_name: str
+
+class CategoryMigrateResponse(BaseModel):
+    message: str
+    affected_count: int
+    from_category: str
+    to_category: str
+
+
+class ExampleCategory(Base):
+    __tablename__ = "example_categories"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False, unique=True)
+    icon = Column(String(50), nullable=False)
+    color = Column(String(7), nullable=False)
+    description = Column(String(200))
+    sort_order = Column(Integer, default=0)
+
+class CategoryMigration(Base):
+    __tablename__ = "category_migrations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    from_category_name = Column(String(50), nullable=False)
+    to_category_name = Column(String(50), nullable=False)
+    affected_count = Column(Integer, nullable=False)
+    migrated_at = Column(DateTime, default=datetime.utcnow)
+
 # ==========================================
 # APP INITIALIZATION
 # ==========================================
@@ -474,36 +551,47 @@ def parse_excel_file(file_content: bytes) -> List[dict]:
 # AUTH ROUTES
 # ==========================================
 
+
+
 @app.post("/api/signup", response_model=Token)
-def signup(user: UserCreate, db: Session = Depends(get_db)):
+def signup(user: SignupWithProfile, db: Session = Depends(get_db)):
+    """
+    Enhanced signup with profile information
+    full_name is now REQUIRED
+    """
     # Check existing user
     if db.query(User).filter(User.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already registered")
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
+    # Validate full_name is provided
+    if not user.full_name or len(user.full_name.strip()) == 0:
+        raise HTTPException(status_code=400, detail="Full name is required")
+    
+    # Create user with profile data
     hashed_password = get_password_hash(user.password)
-    new_user = User(username=user.username, email=user.email, hashed_password=hashed_password)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password,
+        full_name=user.full_name.strip(),
+        phone=user.phone,
+        date_of_birth=datetime.strptime(user.date_of_birth, "%Y-%m-%d").date() if user.date_of_birth else None,
+        occupation=user.occupation,
+        monthly_budget=user.monthly_budget,
+        onboarding_completed=False  # Will be set to True after category selection
+    )
+    
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
-    # ✅ TRY to create default categories (but don't fail signup if it errors)
-    try:
-        create_default_categories(db, new_user.id)
-        print(f"✅ Created default categories for user {new_user.id}")
-    except Exception as e:
-        # Log error but continue - user can create categories manually later
-        import traceback
-        print(f"⚠️ Failed to create default categories: {str(e)}")
-        print(traceback.format_exc())
-        # Don't raise - let signup succeed anyway
+    # NO AUTO-CATEGORY CREATION - User will select during onboarding
     
     # Create token
     access_token = create_access_token(data={"sub": new_user.username})
     
-    # Store username
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/api/login", response_model=Token)
@@ -1181,6 +1269,264 @@ def delete_pending_transaction(token: str, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Transaction deleted"}
+
+# ==========================================
+# PROFILE ROUTES
+# ==========================================
+
+@app.get("/api/profile", response_model=UserProfileResponse)
+def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current user's profile"""
+    return UserProfileResponse(
+        username=current_user.username,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        phone=current_user.phone,
+        date_of_birth=current_user.date_of_birth.isoformat() if current_user.date_of_birth else None,
+        occupation=current_user.occupation,
+        monthly_budget=current_user.monthly_budget,
+        onboarding_completed=current_user.onboarding_completed or False,
+        created_at=current_user.created_at if hasattr(current_user, 'created_at') else None
+    )
+
+@app.put("/api/profile", response_model=UserProfileResponse)
+def update_profile(
+    profile_data: UserProfile,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user profile"""
+    if profile_data.full_name is not None:
+        current_user.full_name = profile_data.full_name
+    if profile_data.phone is not None:
+        current_user.phone = profile_data.phone
+    if profile_data.date_of_birth is not None:
+        current_user.date_of_birth = datetime.strptime(profile_data.date_of_birth, "%Y-%m-%d").date()
+    if profile_data.occupation is not None:
+        current_user.occupation = profile_data.occupation
+    if profile_data.monthly_budget is not None:
+        current_user.monthly_budget = profile_data.monthly_budget
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return UserProfileResponse(
+        username=current_user.username,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        phone=current_user.phone,
+        date_of_birth=current_user.date_of_birth.isoformat() if current_user.date_of_birth else None,
+        occupation=current_user.occupation,
+        monthly_budget=current_user.monthly_budget,
+        onboarding_completed=current_user.onboarding_completed or False,
+        created_at=current_user.created_at if hasattr(current_user, 'created_at') else None
+    )
+
+@app.post("/api/profile/complete-onboarding")
+def complete_onboarding(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark onboarding as completed"""
+    current_user.onboarding_completed = True
+    db.commit()
+    
+    return {"message": "Onboarding completed successfully"}
+
+
+# ==========================================
+# EXAMPLE CATEGORIES ROUTES
+# ==========================================
+
+@app.get("/api/categories/examples", response_model=List[ExampleCategoryResponse])
+def get_example_categories(db: Session = Depends(get_db)):
+    """
+    Get list of example categories that users can choose from
+    No authentication required - can be called during onboarding
+    """
+    examples = db.query(ExampleCategory).order_by(ExampleCategory.sort_order).all()
+    return examples
+
+@app.post("/api/categories/batch")
+def create_categories_batch(
+    batch: CategoryBatchCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create multiple categories at once from example categories
+    Used during onboarding when user selects multiple categories
+    """
+    if not batch.category_ids:
+        raise HTTPException(status_code=400, detail="No categories selected")
+    
+    # Get example categories
+    examples = db.query(ExampleCategory).filter(
+        ExampleCategory.id.in_(batch.category_ids)
+    ).all()
+    
+    if not examples:
+        raise HTTPException(status_code=404, detail="No valid example categories found")
+    
+    created_count = 0
+    skipped_count = 0
+    
+    for example in examples:
+        # Check if user already has this category
+        existing = db.query(Category).filter(
+            Category.user_id == current_user.id,
+            Category.name == example.name
+        ).first()
+        
+        if existing:
+            skipped_count += 1
+            continue
+        
+        # Create category for user
+        new_category = Category(
+            user_id=current_user.id,
+            name=example.name,
+            color=example.color,
+            icon=example.icon,
+            description=example.description,
+            is_custom=False  # Marks as selected from examples
+        )
+        db.add(new_category)
+        created_count += 1
+    
+    db.commit()
+    
+    return {
+        "message": "Categories created successfully",
+        "created": created_count,
+        "skipped": skipped_count,
+        "total": len(batch.category_ids)
+    }
+
+# ==========================================
+# CATEGORY MIGRATION ROUTE
+# ==========================================
+
+@app.post("/api/categories/migrate", response_model=CategoryMigrateResponse)
+def migrate_category(
+    migration: CategoryMigrateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Migrate all transactions from one category to another
+    Useful before deleting a category
+    """
+    # Check if both categories exist and belong to user
+    from_category = db.query(Category).filter(
+        Category.user_id == current_user.id,
+        Category.name == migration.from_category_name
+    ).first()
+    
+    to_category = db.query(Category).filter(
+        Category.user_id == current_user.id,
+        Category.name == migration.to_category_name
+    ).first()
+    
+    if not from_category:
+        raise HTTPException(status_code=404, detail=f"Source category '{migration.from_category_name}' not found")
+    
+    if not to_category:
+        raise HTTPException(status_code=404, detail=f"Target category '{migration.to_category_name}' not found")
+    
+    # Use database function to migrate
+    result = db.execute(
+        "SELECT migrate_category_transactions(:user_id, :from_cat, :to_cat)",
+        {
+            "user_id": current_user.id,
+            "from_cat": migration.from_category_name,
+            "to_cat": migration.to_category_name
+        }
+    )
+    
+    affected_count = result.scalar()
+    db.commit()
+    
+    return CategoryMigrateResponse(
+        message=f"Successfully migrated {affected_count} transaction(s)",
+        affected_count=affected_count,
+        from_category=migration.from_category_name,
+        to_category=migration.to_category_name
+    )
+
+# ==========================================
+# UPDATED DELETE CATEGORY - With Migration Option
+# ==========================================
+
+@app.delete("/api/categories/{category_id}")
+def delete_category_enhanced(
+    category_id: int,
+    migrate_to: Optional[str] = Query(None, description="Migrate transactions to this category before deleting"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a category with optional transaction migration
+    If migrate_to is provided, moves all transactions before deleting
+    """
+    category = db.query(Category).filter(
+        Category.id == category_id,
+        Category.user_id == current_user.id
+    ).first()
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Check if category is used
+    expense_count = db.query(Expense).filter(
+        Expense.user_id == current_user.id,
+        Expense.category == category.name
+    ).count()
+    
+    # If category has expenses and no migration specified, reject
+    if expense_count > 0 and not migrate_to:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete category '{category.name}' - it's used in {expense_count} expense(s). Please specify migrate_to parameter or reassign expenses first."
+        )
+    
+    # If migration specified, migrate first
+    if migrate_to:
+        # Verify target category exists
+        target = db.query(Category).filter(
+            Category.user_id == current_user.id,
+            Category.name == migrate_to
+        ).first()
+        
+        if not target:
+            raise HTTPException(status_code=404, detail=f"Migration target category '{migrate_to}' not found")
+        
+        # Migrate
+        result = db.execute(
+            "SELECT migrate_category_transactions(:user_id, :from_cat, :to_cat)",
+            {
+                "user_id": current_user.id,
+                "from_cat": category.name,
+                "to_cat": migrate_to
+            }
+        )
+        migrated_count = result.scalar()
+    
+    # Delete category
+    db.delete(category)
+    db.commit()
+    
+    if migrate_to:
+        return {
+            "message": f"Category '{category.name}' deleted successfully after migrating {migrated_count} transaction(s) to '{migrate_to}'"
+        }
+    else:
+        return {
+            "message": f"Category '{category.name}' deleted successfully"
+        }
 
 # ==========================================
 # HEALTH CHECK

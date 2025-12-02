@@ -1,323 +1,387 @@
-import React, { useState, useEffect } from "react";
-import {
-  Plus,
-  LogOut,
-  Link as LinkIcon,
-  Wallet,
-  Zap,
-  Menu,
-  Download,
-  Upload
-} from "lucide-react";
-import {
-  getExpenses,
-  createExpense,
-  updateExpense,
-  deleteExpense,
-  generatePaymentUrl,
-} from "../services/api";
-import { PendingTransactionsSection } from "./PendingTransactionSection";
-import { StatsCards } from "./StarCards";
-import { Charts } from "./Charts";
-import { ExpenseList } from "./ExpenseList";
-import { ExpenseForm } from "./ExpenseForm";
-import ExportModal from "./ExportModal";
-import ImportModal from "./ImportModal";
-import { Expense } from "../types"; // ✅ Imported shared type
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Plus, Settings, User, LogOut, Menu, X, 
+  TrendingUp, TrendingDown, Wallet, Filter 
+} from 'lucide-react';
+import ExpenseForm from './ExpenseForm';
+import CategoryManager from './CategoryManager';
 
-interface Props {
-  token: string;
+interface DashboardProps {
   onLogout: () => void;
+  onOpenCategoryManager: () => void;
 }
 
-export const Dashboard: React.FC<Props> = ({ token, onLogout }) => {
-  // State
+interface Expense {
+  id: number;
+  amount: number;
+  category: string;
+  description: string;
+  date: string;
+  type: 'expense' | 'income';
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onLogout, onOpenCategoryManager }) => {
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>("");
-  const [filterType, setFilterType] = useState<string>("");
-  const [generatedUrl, setGeneratedUrl] = useState<string>("");
-  const [showUrlModal, setShowUrlModal] = useState(false);
-  const [userName, setUserName] = useState("User");
-  
-  // ✅ NEW: Export/Import State
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all');
 
-  // Load Data
   useEffect(() => {
     loadExpenses();
-    // Simulate getting user name from token/api
-    const storedName = localStorage.getItem("username");
-    if (storedName) setUserName(storedName);
-  }, [filterCategory, filterType]);
+
+    // Listen for expense updates
+    const handleExpensesUpdated = () => {
+      loadExpenses();
+    };
+
+    window.addEventListener('expensesUpdated', handleExpensesUpdated);
+
+    return () => {
+      window.removeEventListener('expensesUpdated', handleExpensesUpdated);
+    };
+  }, []);
 
   const loadExpenses = async () => {
     try {
-      const data = await getExpenses(token, filterCategory, filterType);
+      const token = localStorage.getItem('token');
+      const response = await fetch('https://your-backend.onrender.com/api/expenses', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to load expenses');
+      
+      const data = await response.json();
       setExpenses(data);
     } catch (err) {
-      console.error("Failed to load expenses:", err);
+      console.error('Failed to load expenses:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGenerateUrl = async () => {
-    try {
-      const data = await generatePaymentUrl(token);
-      setGeneratedUrl(data.url);
-      setShowUrlModal(true);
-    } catch (err) { alert("Failed to generate URL"); }
+  const handleAddExpense = () => {
+    setEditingExpense(null);
+    setShowExpenseForm(true);
   };
 
-  const handleSubmit = async (amount: number, category: string, description: string, date: string, type: "expense" | "income") => {
-    try {
-      if (editingExpense) {
-        await updateExpense(token, editingExpense.id, amount, category, description, date, type);
-      } else {
-        await createExpense(token, amount, category, description, date, type);
-      }
-      setShowAddModal(false);
-      setEditingExpense(null);
-      loadExpenses();
-    } catch (err) { alert("Failed to save"); }
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setShowExpenseForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm("Delete this?")) {
-      await deleteExpense(token, id);
+  const handleDeleteExpense = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this transaction?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`https://your-backend.onrender.com/api/expenses/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to delete expense');
+      
       loadExpenses();
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      alert('Failed to delete transaction');
     }
   };
 
-  // ✅ NEW: Handle Import Success
-  const handleImportSuccess = () => {
-    loadExpenses(); // Refresh expense list after import
-    setShowImportModal(false);
-  };
+  // Calculate totals
+  const filteredExpenses = expenses.filter(exp => {
+    if (filterType === 'all') return true;
+    return exp.type === filterType;
+  });
 
-  // Stats Calculation
-  const totalExpenses = expenses.filter((e) => e.type === "expense").reduce((sum, e) => sum + e.amount, 0);
-  const totalIncome = expenses.filter((e) => e.type === "income").reduce((sum, e) => sum + e.amount, 0);
+  const totalIncome = expenses
+    .filter(exp => exp.type === 'income')
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
+  const totalExpenses = expenses
+    .filter(exp => exp.type === 'expense')
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
   const balance = totalIncome - totalExpenses;
 
-  // Insight Calculations
-  const highestExpense = expenses
-    .filter(e => e.type === 'expense')
-    .sort((a, b) => b.amount - a.amount)[0];
-  
-  const averageSpend = totalExpenses > 0 && expenses.filter(e => e.type === 'expense').length > 0
-    ? totalExpenses / expenses.filter(e => e.type === 'expense').length 
-    : 0;
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
   return (
-    <div className="min-h-screen pb-20 md:pb-8 transition-colors duration-500">
-      {/* 1. Navbar (Glassmorphism) */}
-      <nav className="sticky top-0 z-40 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 px-4 md:px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3 animate-fade-in">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Wallet className="text-white w-5 h-5" />
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+      {/* Header */}
+      <header className="bg-white dark:bg-slate-800 shadow-lg sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <Wallet className="w-8 h-8 text-purple-600" />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                ExpenseTracker
+              </h1>
             </div>
-            <div>
-              <h1 className="font-bold text-lg leading-tight text-slate-900 dark:text-white">Expense<span className="text-indigo-600 dark:text-indigo-400">Tracker</span></h1>
-              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Pro Dashboard</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            {/* ✅ NEW: Export/Import Buttons */}
-            <button 
-              onClick={() => setShowExportModal(true)} 
-              className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-purple-50 hover:text-purple-600 dark:text-slate-300 dark:hover:bg-purple-900/20 transition-all"
-              title="Export data"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden xl:inline">Export</span>
-            </button>
-            
-            <button 
-              onClick={() => setShowImportModal(true)} 
-              className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-green-50 hover:text-green-600 dark:text-slate-300 dark:hover:bg-green-900/20 transition-all"
-              title="Import data"
-            >
-              <Upload className="w-4 h-4" />
-              <span className="hidden xl:inline">Import</span>
-            </button>
-            
-            <button onClick={handleGenerateUrl} className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-all">
-              <LinkIcon className="w-4 h-4" /> 
-              <span className="hidden xl:inline">Quick Link</span>
-            </button>
-            
-            <button onClick={onLogout} className="p-2.5 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 transition-all">
-              <LogOut className="w-5 h-5" />
-            </button>
-            
-            <button onClick={() => { setEditingExpense(null); setShowAddModal(true); }} className="btn btn-primary">
-              <Plus className="w-5 h-5" />
-              <span className="hidden md:inline">New Transaction</span>
-            </button>
-          </div>
-        </div>
-      </nav>
 
-      {/* 2. Main Grid Layout (Bento) */}
-      <div className="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        
-        {/* Welcome Message */}
-        <div className="col-span-full mb-2 animate-slide-up">
-           <div className="flex justify-between items-center">
-             <div>
-               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                 Hello, <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">{userName}</span> 👋
-               </h2>
-               <p className="text-slate-500 dark:text-slate-400">Here's your financial overview for today.</p>
-             </div>
-             
-             {/* ✅ NEW: Mobile Export/Import Buttons */}
-             <div className="flex lg:hidden gap-2">
-               <button 
-                 onClick={() => setShowExportModal(true)}
-                 className="p-2.5 rounded-xl bg-white dark:bg-slate-800 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
-                 title="Export"
-               >
-                 <Download className="w-5 h-5" />
-               </button>
-               <button 
-                 onClick={() => setShowImportModal(true)}
-                 className="p-2.5 rounded-xl bg-white dark:bg-slate-800 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
-                 title="Import"
-               >
-                 <Upload className="w-5 h-5" />
-               </button>
-             </div>
-           </div>
-        </div>
-
-        {/* Row 1: Stats Cards (Full Width) */}
-        <div className="col-span-full">
-          <StatsCards balance={balance} income={totalIncome} expenses={totalExpenses} />
-        </div>
-
-        {/* Row 2: Left Column (Charts & Insights) */}
-        <div className="col-span-1 md:col-span-1 xl:col-span-2 flex flex-col gap-6">
-          
-          {/* Insights Card - Staggered Entry */}
-          <div className="glass-panel p-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg text-amber-600">
-                <Zap className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-slate-800 dark:text-slate-200">AI Insights</h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Highest Spend</p>
-                <p className="text-lg font-black text-slate-800 dark:text-slate-100 truncate">
-                  {highestExpense ? `₹${highestExpense.amount}` : "—"}
-                </p>
-                <p className="text-xs text-slate-500 truncate mt-1">{highestExpense?.description || "No data yet"}</p>
-              </div>
-              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/30">
-                <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">Avg. Transaction</p>
-                <p className="text-lg font-black text-slate-800 dark:text-slate-100">
-                  ₹{averageSpend.toFixed(0)}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">per active expense</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Charts Area - Staggered Entry */}
-          <div className="h-96 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            <Charts expenses={expenses} />
-          </div>
-        </div>
-
-        {/* Row 2: Right Column (Pending & Recent Transactions) */}
-        <div className="col-span-1 md:col-span-1 xl:col-span-2 flex flex-col gap-6">
-          
-          {/* Pending Section */}
-          <div className="animate-slide-up" style={{ animationDelay: '0.4s' }}>
-             <PendingTransactionsSection token={token} onUpdate={loadExpenses} />
-          </div>
-          
-          {/* Category Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar animate-slide-up" style={{ animationDelay: '0.5s' }}>
-            {["Food", "Transport", "Shopping", "Bills", "Entertainment"].map((cat, i) => (
-              <button 
-                key={cat}
-                onClick={() => setFilterCategory(filterCategory === cat ? "" : cat)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300
-                  ${filterCategory === cat 
-                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg scale-105" 
-                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-400"}`}
-                style={{ animationDelay: `${0.5 + (i * 0.05)}s` }}
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={onOpenCategoryManager}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-all"
+                title="Manage Categories"
               >
-                {cat}
+                <Settings className="w-4 h-4" />
+                <span>Categories</span>
               </button>
-            ))}
-          </div>
 
-          {/* List - The list itself has internal staggering */}
-          <ExpenseList 
-            expenses={expenses} 
-            onEdit={(e) => { setEditingExpense(e); setShowAddModal(true); }}
-            onDelete={handleDelete}
-          />
-        </div>
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-all"
+              >
+                <User className="w-4 h-4" />
+                <span>Profile</span>
+              </button>
 
-      </div>
-
-      {/* 3. Modals (With Spring Animation) */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="w-full max-w-md animate-scale-spring">
-            <ExpenseForm 
-              onSubmit={handleSubmit} 
-              onCancel={() => setShowAddModal(false)}
-              editingExpense={editingExpense}
-              error=""
-            />
-          </div>
-        </div>
-      )}
-
-      {showUrlModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-panel p-8 max-w-md w-full animate-scale-spring text-center">
-            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <LinkIcon className="w-8 h-8 text-indigo-600" />
+              <button
+                onClick={onLogout}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
             </div>
-            <h3 className="text-xl font-bold mb-2 dark:text-white">Your Quick Link</h3>
-            <p className="text-slate-500 text-sm mb-6">Share this URL or use it to add expenses instantly without logging in.</p>
-            
-            <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl text-xs break-all font-mono mb-6 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-              {generatedUrl}
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="md:hidden py-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    onOpenCategoryManager();
+                    setShowMobileMenu(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-all"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Manage Categories</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigate('/profile');
+                    setShowMobileMenu(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-all"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Profile</span>
+                </button>
+
+                <button
+                  onClick={onLogout}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
-            
-            <button onClick={() => setShowUrlModal(false)} className="btn btn-primary w-full">Done</button>
+          )}
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Total Balance */}
+          <div className="bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl shadow-xl p-6 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium opacity-90">Total Balance</span>
+              <Wallet className="w-5 h-5 opacity-90" />
+            </div>
+            <p className="text-3xl font-bold">{formatCurrency(balance)}</p>
+          </div>
+
+          {/* Total Income */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Income</span>
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            </div>
+            <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+              {formatCurrency(totalIncome)}
+            </p>
+          </div>
+
+          {/* Total Expenses */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Expenses</span>
+              <TrendingDown className="w-5 h-5 text-red-500" />
+            </div>
+            <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+              {formatCurrency(totalExpenses)}
+            </p>
           </div>
         </div>
-      )}
 
-      {/* ✅ NEW: Export Modal */}
-      <ExportModal 
-        isOpen={showExportModal} 
-        onClose={() => setShowExportModal(false)} 
-      />
+        {/* Transactions List */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+              Transactions
+            </h2>
+            
+            <div className="flex items-center gap-3">
+              {/* Filter */}
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                <button
+                  onClick={() => setFilterType('all')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    filterType === 'all'
+                      ? 'bg-white dark:bg-slate-600 text-purple-600 dark:text-purple-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilterType('expense')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    filterType === 'expense'
+                      ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Expenses
+                </button>
+                <button
+                  onClick={() => setFilterType('income')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    filterType === 'income'
+                      ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Income
+                </button>
+              </div>
 
-      {/* ✅ NEW: Import Modal */}
-      <ImportModal 
-        isOpen={showImportModal} 
-        onClose={() => setShowImportModal(false)}
-        onSuccess={handleImportSuccess}
+              {/* Add Button */}
+              <button
+                onClick={handleAddExpense}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg shadow-purple-500/30"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline">Add Transaction</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Transactions */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+            </div>
+          ) : filteredExpenses.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-slate-500 dark:text-slate-400">
+                {filterType === 'all' 
+                  ? 'No transactions yet. Add your first transaction!' 
+                  : `No ${filterType} transactions found.`}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredExpenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl hover:shadow-md transition-all group"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        expense.type === 'income'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                      }`}>
+                        {expense.category}
+                      </span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {new Date(expense.date).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {expense.description && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {expense.description}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <span className={`text-xl font-bold ${
+                      expense.type === 'income'
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      {expense.type === 'income' ? '+' : '-'} {formatCurrency(expense.amount)}
+                    </span>
+                    
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditExpense(expense)}
+                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteExpense(expense.id)}
+                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Expense Form Modal */}
+      <ExpenseForm
+        isOpen={showExpenseForm}
+        onClose={() => {
+          setShowExpenseForm(false);
+          setEditingExpense(null);
+        }}
+        onExpenseAdded={loadExpenses}
+        editExpense={editingExpense}
       />
     </div>
   );
 };
+
+export default Dashboard;
