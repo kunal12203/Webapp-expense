@@ -4,7 +4,7 @@ import {
   Plus, Settings, User, LogOut, Menu, X, 
   TrendingUp, TrendingDown, Wallet, Filter 
 } from 'lucide-react';
-import ExpenseForm from './ExpenseForm';
+import ExpenseForm from './ExpenseForm_COMPLETE';
 import CategoryManager from './CategoryManager';
 
 interface DashboardProps {
@@ -48,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onOpenCategoryManager }
   const loadExpenses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/expenses', {
+      const response = await fetch('API_ENDPOINTS.expenses', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -80,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onOpenCategoryManager }
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`https://your-backend.onrender.com/api/expenses/${id}`, {
+      const response = await fetch(`API_ENDPOINTS.expenses/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

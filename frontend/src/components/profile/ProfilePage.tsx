@@ -40,7 +40,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/profile', {
+      const response = await fetch('API_ENDPOINTS.profile', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -74,7 +74,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/profile', {
+      const response = await fetch('API_ENDPOINTS.profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

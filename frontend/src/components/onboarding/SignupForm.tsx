@@ -110,7 +110,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
         monthly_budget: formData.monthly_budget ? parseFloat(formData.monthly_budget) : null
       };
 
-      const response = await fetch('https://your-backend.onrender.com/api/signup', {
+      const response = await fetch('API_ENDPOINTS.signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

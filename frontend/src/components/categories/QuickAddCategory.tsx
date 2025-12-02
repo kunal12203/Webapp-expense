@@ -37,7 +37,7 @@ const QuickAddCategory: React.FC<QuickAddCategoryProps> = ({ onCategoryAdded }) 
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/categories', {
+      const response = await fetch('API_ENDPOINTS.categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

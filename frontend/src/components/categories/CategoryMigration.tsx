@@ -48,7 +48,7 @@ const CategoryMigration: React.FC<CategoryMigrationProps> = ({
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/categories', {
+      const response = await fetch('API_ENDPOINTS.categories', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -67,7 +67,7 @@ const CategoryMigration: React.FC<CategoryMigrationProps> = ({
   const fetchExpenseCount = async (categoryName: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/expenses', {
+      const response = await fetch('API_ENDPOINTS.expenses', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -101,7 +101,7 @@ const CategoryMigration: React.FC<CategoryMigrationProps> = ({
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/categories/migrate', {
+      const response = await fetch('API_ENDPOINTS.categories/migrate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

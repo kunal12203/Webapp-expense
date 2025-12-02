@@ -67,7 +67,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const loadCategories = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://your-backend.onrender.com/api/categories', {
+      const response = await fetch('API_ENDPOINTS.categories', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -121,8 +121,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       };
 
       const url = editExpense 
-        ? `https://your-backend.onrender.com/api/expenses/${editExpense.id}`
-        : 'https://your-backend.onrender.com/api/expenses';
+        ? `API_ENDPOINTS.expenses/${editExpense.id}`
+        : 'API_ENDPOINTS.expenses';
       
       const method = editExpense ? 'PUT' : 'POST';
 

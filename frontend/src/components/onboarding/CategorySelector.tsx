@@ -36,7 +36,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ token }) => {
 
   const fetchExampleCategories = async () => {
     try {
-      const response = await fetch('https://your-backend.onrender.com/api/categories/examples');
+      const response = await fetch('API_ENDPOINTS.categories/examples');
       if (!response.ok) throw new Error('Failed to fetch categories');
       const data = await response.json();
       setExampleCategories(data);
@@ -67,7 +67,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ token }) => {
     setError('');
 
     try {
-      const response = await fetch('https://your-backend.onrender.com/api/categories/batch', {
+      const response = await fetch('API_ENDPOINTS.categories/batch', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ token }) => {
       if (!response.ok) throw new Error('Failed to add categories');
 
       // Mark onboarding as complete
-      await fetch('https://your-backend.onrender.com/api/profile/complete-onboarding', {
+      await fetch('API_ENDPOINTS.profile/complete-onboarding', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -100,7 +100,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ token }) => {
   const handleSkip = async () => {
     // Mark onboarding as complete even if skipped
     try {
-      await fetch('https://your-backend.onrender.com/api/profile/complete-onboarding', {
+      await fetch('API_ENDPOINTS.profile/complete-onboarding', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -122,7 +122,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ token }) => {
     setError('');
 
     try {
-      const response = await fetch('https://your-backend.onrender.com/api/categories', {
+      const response = await fetch('API_ENDPOINTS.categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
