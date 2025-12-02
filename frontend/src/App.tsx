@@ -8,7 +8,7 @@ import ResetPassword from "./components/ResetPassword";
 import CategorySelector from "./components/onboarding/CategorySelector";
 import ProfilePage from "./components/profile/ProfilePage";
 import PendingTransactionModal from "./components/PendingTransactionModal";
-import SMSProcessor from "./components/SmsProcessor";
+import SMSProcessor from "./components/SMSProcessor";
 import Layout from "./components/Layout";
 import { API_ENDPOINTS } from "./config/api";
 import { Loader2 } from "lucide-react";
