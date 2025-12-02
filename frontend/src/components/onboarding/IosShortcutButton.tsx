@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Smartphone, Download, Copy, Check, ExternalLink, AlertCircle, Link as LinkIcon, Loader2 } from 'lucide-react';
-import { API_ENDPOINTS, authGet } from '../../config/api';
+import { authGet } from '../../config/api';
 
 interface IOSShortcutButtonProps {
   onSkip?: () => void;
@@ -13,19 +13,23 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
   const [showInstructions, setShowInstructions] = useState(false);
   const [personalizedUrl, setPersonalizedUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const token = localStorage.getItem('token');
   
   const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/4b61ce735779484b96688db44c7df2c7';
+  const API_BASE = import.meta.env.VITE_API_URL || "https://webapp-expense.onrender.com";
 
   // Fetch personalized shortcut URL on mount
   useEffect(() => {
     const fetchPersonalizedUrl = async () => {
       setLoading(true);
+      setError('');
       try {
-        const response = await authGet(`${API_ENDPOINTS.profile.replace('/profile', '')}/api/user/shortcut-url`);
+        const response = await authGet(`${API_BASE}/api/user/shortcut-url`);
         setPersonalizedUrl(response.shortcut_url);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch personalized URL:', error);
+        setError(error.message || 'Failed to load URL');
       } finally {
         setLoading(false);
       }
@@ -101,11 +105,20 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                   <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
                   <span className="ml-2 text-sm text-slate-500">Generating your URL...</span>
                 </div>
+              ) : error ? (
+                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800">
+                  <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">
+                    <strong>Failed to load URL:</strong> {error}
+                  </p>
+                  <p className="text-xs text-rose-500 dark:text-rose-400">
+                    Please check that the backend is deployed and the endpoint exists.
+                  </p>
+                </div>
               ) : (
                 <>
                   <div className="mb-4 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 break-all">
                     <code className="text-xs text-slate-600 dark:text-slate-300 font-mono">
-                      {personalizedUrl || 'Failed to generate URL'}
+                      {personalizedUrl || 'No URL generated'}
                     </code>
                   </div>
 

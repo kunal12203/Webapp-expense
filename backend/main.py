@@ -832,10 +832,6 @@ async def get_personalized_shortcut_url(
     
     Usage: User copies this URL and pastes it in their iOS Shortcut
     """
-    # Get user's current token from the request
-    # Note: In production, consider generating a long-lived API key instead
-    from jose import jwt
-    
     # Create a long-lived token (30 days) specifically for shortcuts
     shortcut_token_data = {"sub": current_user.username}
     shortcut_expire = datetime.utcnow() + timedelta(days=30)
