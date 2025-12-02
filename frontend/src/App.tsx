@@ -71,32 +71,23 @@ const App = () => {
           }
         />
 
-        {/* Protected Route */}
-        <Route
-          path="/"
-          element={
-            <Protected>
-              {onboardingRequired ? (
+        {/* Protected Routes with Layout */}
+        <Route element={<Protected><Layout /></Protected>}>
+          <Route
+            path="/"
+            element={
+              onboardingRequired ? (
                 <Navigate to="/onboarding/categories" />
               ) : (
                 <Dashboard />
-              )}
-            </Protected>
-          }
-        />
+              )
+            }
+          />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
 
         {/* Pending Transaction Page */}
         <Route path="/add-expense/:token" element={<PendingTransactionModal />} />
-
-        {/* Profile */}
-        <Route
-          path="/profile"
-          element={
-            <Protected>
-              <ProfilePage />
-            </Protected>
-          }
-        />
 
       </Routes>
     </BrowserRouter>

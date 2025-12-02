@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Download, Copy, Check, ExternalLink, AlertCircle } from 'lucide-react';
+import { Smartphone, Download, Copy, Check, ExternalLink, AlertCircle, Link as LinkIcon } from 'lucide-react';
 
 interface IOSShortcutButtonProps {
   onSkip?: () => void;
@@ -7,86 +7,30 @@ interface IOSShortcutButtonProps {
 }
 
 const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalone = false }) => {
-  const [copied, setCopied] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const token = localStorage.getItem('token');
   
   const API_URL = 'https://webapp-expense.onrender.com/api/user/sms-parse';
-  
-  // iOS Shortcut configuration as JSON
-  const shortcutConfig = {
-    WFWorkflowActions: [
-      {
-        WFWorkflowActionIdentifier: "is.workflow.actions.text",
-        WFWorkflowActionParameters: {
-          WFTextActionText: "Paste your SMS message here"
-        }
-      },
-      {
-        WFWorkflowActionIdentifier: "is.workflow.actions.urlencode",
-        WFWorkflowActionParameters: {}
-      },
-      {
-        WFWorkflowActionIdentifier: "is.workflow.actions.url",
-        WFWorkflowActionParameters: {
-          WFURLActionURL: `${API_URL}?sms=`
-        }
-      },
-      {
-        WFWorkflowActionIdentifier: "is.workflow.actions.downloadurl",
-        WFWorkflowActionParameters: {
-          WFHTTPMethod: "GET",
-          WFHTTPHeaders: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      },
-      {
-        WFWorkflowActionIdentifier: "is.workflow.actions.getvalueforkey",
-        WFWorkflowActionParameters: {
-          WFDictionaryKey: "url"
-        }
-      },
-      {
-        WFWorkflowActionIdentifier: "is.workflow.actions.openurl",
-        WFWorkflowActionParameters: {}
-      }
-    ],
-    WFWorkflowClientVersion: "2302.0.4",
-    WFWorkflowMinimumClientVersion: 900,
-    WFWorkflowMinimumClientVersionString: "900",
-    WFWorkflowTypes: ["NCWidget", "WatchKit"],
-    WFWorkflowInputContentItemClasses: [
-      "WFAppStoreAppContentItem",
-      "WFStringContentItem"
-    ]
-  };
+  const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/4b61ce735779484b96688db44c7df2c7';
 
   const copyToken = () => {
     if (token) {
       navigator.clipboard.writeText(token);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedToken(true);
+      setTimeout(() => setCopiedToken(false), 2000);
     }
   };
 
-  const downloadShortcut = () => {
-    // Create blob with shortcut configuration
-    const blob = new Blob([JSON.stringify(shortcutConfig, null, 2)], {
-      type: 'application/json'
-    });
-    
-    // Create download link
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ExpenseTracker-SMS.shortcut';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    // Show instructions
+  const copyApiUrl = () => {
+    navigator.clipboard.writeText(API_URL);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const openShortcut = () => {
+    window.open(SHORTCUT_LINK, '_blank');
     setShowInstructions(true);
   };
 
@@ -113,49 +57,96 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
           </div>
         </div>
 
-        {/* Steps */}
+        {/* Main Action Buttons */}
         {!showInstructions ? (
           <div className="space-y-4">
-            {/* Step 1 */}
-            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">1</span>
+            
+            {/* Add Shortcut Button */}
+            <div className="p-5 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
+                  <Download className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Add to iPhone Shortcuts</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">One-click setup</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white text-sm mb-2">Copy Authentication Token</h4>
-                <button
-                  onClick={copyToken}
-                  className="w-full btn-ghost py-2.5 text-sm"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Token Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      Copy Token
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={openShortcut}
+                className="w-full btn-gradient py-3 text-sm shadow-lg shadow-indigo-500/30"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open Shortcut Link
+              </button>
             </div>
 
-            {/* Step 2 */}
-            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">2</span>
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white text-sm mb-2">Download & Install Shortcut</h4>
-                <button
-                  onClick={downloadShortcut}
-                  className="w-full btn-gradient py-2.5 text-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Shortcut
-                </button>
+            {/* API Configuration Section */}
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <h4 className="font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                <LinkIcon className="w-4 h-4" />
+                Configuration Details
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                You'll need these to set up the shortcut manually
+              </p>
+              
+              <div className="space-y-3">
+                {/* Auth Token */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">
+                    1. Your Authentication Token
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
+                      {token?.substring(0, 40)}...
+                    </div>
+                    <button
+                      onClick={copyToken}
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
+                      {copiedToken ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span className="text-emerald-600">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* API URL */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">
+                    2. Your Personalized API URL
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
+                      {API_URL}
+                    </div>
+                    <button
+                      onClick={copyApiUrl}
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
+                      {copiedUrl ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span className="text-emerald-600">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -163,7 +154,7 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
             <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
               <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-blue-800 dark:text-blue-200">
-                <strong>How it works:</strong> When you receive a bank SMS, run this shortcut. It will parse the message using AI and create an expense entry for you to approve.
+                <strong>How it works:</strong> Click "Open Shortcut Link" → Tap "Add Shortcut" → When you receive a bank SMS, share it with this shortcut to automatically create an expense.
               </p>
             </div>
           </div>
@@ -173,24 +164,24 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
             <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
               <div className="flex items-center gap-2 mb-3">
                 <Check className="w-5 h-5 text-emerald-600" />
-                <h4 className="font-bold text-emerald-900 dark:text-emerald-100">Shortcut Downloaded!</h4>
+                <h4 className="font-bold text-emerald-900 dark:text-emerald-100">Shortcut Opened!</h4>
               </div>
               <ol className="space-y-2 text-sm text-emerald-800 dark:text-emerald-200">
                 <li className="flex gap-2">
                   <span className="font-bold">1.</span>
-                  <span>Open the downloaded .shortcut file on your iPhone</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold">2.</span>
                   <span>Tap "Add Shortcut" in the Shortcuts app</span>
                 </li>
                 <li className="flex gap-2">
+                  <span className="font-bold">2.</span>
+                  <span>The shortcut is pre-configured with your token and API URL</span>
+                </li>
+                <li className="flex gap-2">
                   <span className="font-bold">3.</span>
-                  <span>The shortcut will automatically use your auth token</span>
+                  <span>When you receive a bank SMS, share it with "Expense Parser" shortcut</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold">4.</span>
-                  <span>When you receive a bank SMS, share it with this shortcut</span>
+                  <span>Confirm the parsed details and save!</span>
                 </li>
               </ol>
             </div>
