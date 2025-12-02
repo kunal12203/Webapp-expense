@@ -6,9 +6,10 @@ import { Sparkles } from "lucide-react";
 import SignupForm from "./onboarding/SignupForm";
 import { useNavigate } from "react-router-dom";
 
-const navigate = useNavigate();
 
 const Signup = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       {/* Background decoration */}
