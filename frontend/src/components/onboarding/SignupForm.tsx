@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { API_ENDPOINTS } from "../../config/api";
 
-const navigate = useNavigate();
 interface SignupFormProps {
   onSignupSuccess: (token: string, userId: number) => void;
 }
@@ -80,9 +79,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
       if (!res.ok) throw new Error(data.detail || "Signup failed");
 
       localStorage.setItem("token", data.access_token);
-      navigate('/onboarding/categories');
-
-      // Remove: onSignupSuccess(data.access_token, 0);
+      onSignupSuccess(data.access_token, 0);
     } catch (err: any) {
       setError(err.message || "Signup failed");
     } finally {

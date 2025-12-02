@@ -1,9 +1,12 @@
 // src/components/Signup.tsx
 
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import SignupForm from "./onboarding/SignupForm";
+import { useNavigate } from "react-router-dom";
+
+const navigate = useNavigate();
 
 const Signup = () => {
   return (
@@ -32,7 +35,9 @@ const Signup = () => {
         </div>
 
         {/* Form */}
-        <SignupForm onSignupSuccess={() => {}} />
+        <SignupForm onSignupSuccess={() => {
+          navigate('/onboarding/categories');
+        }} />
 
         {/* Footer */}
         <div className="mt-6 text-center">
