@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   User, Mail, Lock, Phone, Briefcase, Calendar,
-  DollarSign, ChevronRight, ChevronLeft
+  DollarSign, ChevronRight, ChevronLeft, Loader2
 } from "lucide-react";
 import { API_ENDPOINTS } from "../../config/api";
 
@@ -33,6 +33,14 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
   const validateStep1 = () => {
     if (!formData.username || !formData.email || !formData.password || !formData.full_name) {
       setError("Please fill in all required fields.");
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError("Please enter a valid email address.");
       return false;
     }
     return true;
@@ -80,19 +88,29 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-5" onSubmit={handleSubmit}>
+      {/* Progress indicator */}
+      <div className="flex items-center justify-center gap-2 mb-6">
+        <div className={`h-2 w-20 rounded-full transition-all duration-300 ${step === 1 ? 'bg-indigo-600' : 'bg-indigo-200'}`} />
+        <div className={`h-2 w-20 rounded-full transition-all duration-300 ${step === 2 ? 'bg-indigo-600' : 'bg-indigo-200'}`} />
+      </div>
+
       {error && (
-        <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm animate-shake">
+          {error}
+        </div>
       )}
 
       {step === 1 && (
-        <>
+        <div className="space-y-4 animate-fadeIn">
           <div>
-            <label className="text-sm font-medium">Full Name *</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <User />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Full Name *</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
-                className="flex-1 outline-none"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.full_name}
                 onChange={(e) =>
                   setFormData({ ...formData, full_name: e.target.value })
@@ -103,12 +121,14 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Email *</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <Mail />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Email *</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
                 type="email"
-                className="flex-1 outline-none"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -119,10 +139,13 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Username *</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <User />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Username *</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.username}
                 onChange={(e) =>
                   setFormData({ ...formData, username: e.target.value })
@@ -133,11 +156,14 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Password *</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <Lock />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Password *</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
                 type="password"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
@@ -145,40 +171,54 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
                 placeholder="••••••••"
               />
             </div>
+            <p className="text-xs text-slate-500 mt-1">Minimum 6 characters</p>
           </div>
 
           <button
             type="button"
-            onClick={() => validateStep1() && setStep(2)}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg flex items-center justify-center gap-2"
+            onClick={() => {
+              setError("");
+              validateStep1() && setStep(2);
+            }}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
           >
-            Continue <ChevronRight />
+            Continue <ChevronRight className="w-5 h-5" />
           </button>
-        </>
+        </div>
       )}
 
       {step === 2 && (
-        <>
+        <div className="space-y-4 animate-fadeIn">
+          <p className="text-sm text-slate-600 text-center mb-4">
+            Optional: Help us personalize your experience
+          </p>
+
           <div>
-            <label className="text-sm font-medium">Phone</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <Phone />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Phone</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Phone className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.phone}
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                placeholder="Optional"
+                placeholder="+91 98765 43210"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium">Date of Birth</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <Calendar />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Date of Birth</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Calendar className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
                 type="date"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.date_of_birth}
                 onChange={(e) =>
                   setFormData({ ...formData, date_of_birth: e.target.value })
@@ -188,25 +228,31 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Occupation</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <Briefcase />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Occupation</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Briefcase className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.occupation}
                 onChange={(e) =>
                   setFormData({ ...formData, occupation: e.target.value })
                 }
-                placeholder="Designer"
+                placeholder="Software Engineer"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium">Monthly Budget</label>
-            <div className="flex items-center gap-2 p-2 border rounded-lg bg-white">
-              <DollarSign />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Monthly Budget</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <DollarSign className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
               <input
                 type="number"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
                 value={formData.monthly_budget}
                 onChange={(e) =>
                   setFormData({ ...formData, monthly_budget: e.target.value })
@@ -216,24 +262,33 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 pt-2">
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border"
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-300 hover:border-slate-400 font-medium transition-all"
             >
-              <ChevronLeft /> Back
+              <ChevronLeft className="w-5 h-5" /> Back
             </button>
 
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white"
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
             >
-              {loading ? "Signing Up..." : "Create Account"} <ChevronRight />
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  Create Account <ChevronRight className="w-5 h-5" />
+                </>
+              )}
             </button>
           </div>
-        </>
+        </div>
       )}
     </form>
   );
