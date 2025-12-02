@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { BellRing, Check, X, Loader2, ArrowRight } from "lucide-react";
+import { BellRing, Check, X, Loader2, Edit2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getPendingTransactions, confirmPendingTransaction, cancelPendingTransaction } from "../config/api";
 
 const PendingTransactionSection = ({ onUpdate }: any) => {
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -34,6 +36,10 @@ const PendingTransactionSection = ({ onUpdate }: any) => {
     finally { setProcessingId(null); }
   };
 
+  const handleEdit = (tx: any) => {
+    navigate(`/add-expense/${tx.token}`);
+  };
+
   if (!loading && transactions.length === 0) return null;
 
   return (
@@ -55,27 +61,38 @@ const PendingTransactionSection = ({ onUpdate }: any) => {
               <div>
                 <span className="text-lg font-bold text-slate-900 dark:text-white">₹{tx.amount}</span>
                 <p className="text-xs text-slate-500">{tx.description}</p>
+                <span className="inline-block mt-1 text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                  {tx.category}
+                </span>
               </div>
               <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-500">
                 {tx.date}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => handleAction(tx, 'approve')}
                 disabled={processingId === tx.id}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processingId === tx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                Approve
+                Confirm
+              </button>
+              <button
+                onClick={() => handleEdit(tx)}
+                disabled={processingId === tx.id}
+                className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Edit2 className="w-3 h-3" />
+                Edit
               </button>
               <button
                 onClick={() => handleAction(tx, 'cancel')}
                 disabled={processingId === tx.id}
-                className="bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95"
+                className="bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <X className="w-3 h-3" /> Reject
+                <X className="w-3 h-3" /> Delete
               </button>
             </div>
           </div>
