@@ -1,169 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+// src/App.tsx
 
-// Auth Components
-import Login from './components/Login';
-import SignupForm from './components/onboarding/SignupForm';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
+import React, { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Dashboard from "./components/Dashboard";
+import Signup from "./components/Signup";
+import Login from "./components/Login";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
+import CategorySelector from "./components/onboarding/CategorySelector";
+import ProfilePage from "./components/profile/ProfilePage";
+import PendingTransactionModal from "./components/PendingTransactionModal";
 
-// Onboarding Components
-import CategorySelector from './components/onboarding/CategorySelector';
+import { API_ENDPOINTS } from "./config/api";
 
-// Main App Components
-import Dashboard from './components/Dashboard';
-import ProfilePage from './components/profile/ProfilePage';
+const Protected = ({ children }: any) => {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" />;
+};
 
-// Category Components
-import CategoryManager from './components/CategoryManager';
-import CategoryMigration from './components/categories/CategoryMigration';
+const App = () => {
+  const [onboardingRequired, setOnboardingRequired] = useState(false);
 
-function App() {
-  const [token, setToken] = useState<string | null>(null);
-  const [showCategorySelector, setShowCategorySelector] = useState(false);
-  const [showCategoryManager, setShowCategoryManager] = useState(false);
-  const [showCategoryMigration, setShowCategoryMigration] = useState(false);
+  const loadProfile = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-  // Check for existing token on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    if (savedToken) {
-      setToken(savedToken);
+    const res = await fetch(API_ENDPOINTS.profile, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const profile = await res.json();
+
+    if (!profile.onboarding_completed) {
+      setOnboardingRequired(true);
     }
-  }, []);
-
-  // Handle successful signup
-  const handleSignupSuccess = (newToken: string, userId?: number) => {
-    setToken(newToken);
-    localStorage.setItem('token', newToken);
-    // Show category selector after signup
-    setShowCategorySelector(true);
   };
 
-  // Handle successful login
-  const handleLoginSuccess = (newToken: string) => {
-    setToken(newToken);
-    localStorage.setItem('token', newToken);
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-  };
+  useEffect(() => loadProfile(), []);
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route 
-          path="/login" 
+
+        {/* Auth pages */}
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* Onboarding */}
+        <Route
+          path="/onboarding/categories"
           element={
-            token ? 
-              <Navigate to="/dashboard" /> : 
-              <Login onLoginSuccess={handleLoginSuccess} />
-          } 
-        />
-        
-        <Route 
-          path="/signup" 
-          element={
-            token ? 
-              <Navigate to="/dashboard" /> : 
-              <SignupForm onSignupSuccess={handleSignupSuccess} />
-          } 
+            <Protected>
+              <CategorySelector />
+            </Protected>
+          }
         />
 
-        <Route 
-          path="/forgot-password" 
+        {/* Protected Route */}
+        <Route
+          path="/"
           element={
-            token ? 
-              <Navigate to="/dashboard" /> : 
-              <ForgotPassword />
-          } 
+            <Protected>
+              {onboardingRequired ? (
+                <Navigate to="/onboarding/categories" />
+              ) : (
+                <Dashboard />
+              )}
+            </Protected>
+          }
         />
 
-        <Route 
-          path="/reset-password" 
+        {/* Pending Transaction Page */}
+        <Route path="/add-expense/:token" element={<PendingTransactionModal />} />
+
+        {/* Profile */}
+        <Route
+          path="/profile"
           element={
-            token ? 
-              <Navigate to="/dashboard" /> : 
-              <ResetPassword />
-          } 
+            <Protected>
+              <ProfilePage />
+            </Protected>
+          }
         />
 
-        {/* Protected Routes */}
-        <Route 
-          path="/dashboard" 
-          element={
-            token ? 
-              <Dashboard 
-                onLogout={handleLogout}
-                onOpenCategoryManager={() => setShowCategoryManager(true)}
-              /> : 
-              <Navigate to="/login" />
-          } 
-        />
-        
-        <Route 
-          path="/profile" 
-          element={
-            token ? 
-              <ProfilePage 
-                onOpenCategoryManager={() => setShowCategoryManager(true)}
-                onOpenCategoryMigration={() => setShowCategoryMigration(true)}
-              /> : 
-              <Navigate to="/login" />
-          } 
-        />
-
-        {/* Default Route */}
-        <Route 
-          path="/" 
-          element={
-            token ? 
-              <Navigate to="/dashboard" /> : 
-              <Navigate to="/login" />
-          } 
-        />
-
-        {/* Catch all - redirect to home */}
-        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-
-      {/* Global Modals */}
-      {showCategorySelector && (
-        <div className="fixed inset-0 z-50">
-          <CategorySelector 
-            token={token!}
-          />
-        </div>
-      )}
-
-      {showCategoryManager && (
-        <CategoryManager 
-          isOpen={showCategoryManager}
-          onClose={() => setShowCategoryManager(false)}
-          onUpdate={() => {
-            // Refresh categories in any component that needs it
-            window.dispatchEvent(new Event('categoriesUpdated'));
-          }}
-        />
-      )}
-
-      {showCategoryMigration && (
-        <CategoryMigration 
-          isOpen={showCategoryMigration}
-          onClose={() => setShowCategoryMigration(false)}
-          onMigrationComplete={() => {
-            // Refresh data after migration
-            window.dispatchEvent(new Event('categoriesUpdated'));
-            window.dispatchEvent(new Event('expensesUpdated'));
-          }}
-        />
-      )}
     </BrowserRouter>
   );
-}
+};
 
 export default App;

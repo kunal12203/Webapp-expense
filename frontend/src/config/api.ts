@@ -1,39 +1,79 @@
 // src/config/api.ts
-// Central API configuration using environment variables
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API_BASE = import.meta.env.VITE_API_URL || "https://webapp-expense.onrender.com";
 
 export const API_ENDPOINTS = {
-  // Auth
-  login: `${API_URL}/api/login`,
-  signup: `${API_URL}/api/signup`,
-  forgotPassword: `${API_URL}/api/forgot-password`,
-  resetPassword: `${API_URL}/api/reset-password`,
-  
-  // Profile
-  profile: `${API_URL}/api/profile`,
-  completeOnboarding: `${API_URL}/api/profile/complete-onboarding`,
-  
-  // Categories
-  categories: `${API_URL}/api/categories`,
-  exampleCategories: `${API_URL}/api/categories/examples`,
-  categoriesBatch: `${API_URL}/api/categories/batch`,
-  categoryMigrate: `${API_URL}/api/categories/migrate`,
-  categoryStats: `${API_URL}/api/categories/stats`,
-  
-  // Expenses
-  expenses: `${API_URL}/api/expenses`,
-  
-  // Export/Import
-  exportCSV: `${API_URL}/api/expenses/export/csv`,
-  exportExcel: `${API_URL}/api/expenses/export/excel`,
-  importFile: `${API_URL}/api/expenses/import`,
+  signup: `${API_BASE}/api/signup`,
+  login: `${API_BASE}/api/login`,
+  forgotPassword: `${API_BASE}/api/forgot-password`,
+  resetPassword: `${API_BASE}/api/reset-password`,
+
+  categories: `${API_BASE}/api/categories`,
+  categoryStats: `${API_BASE}/api/categories/stats`,
+  categoryMigrate: `${API_BASE}/api/categories/migrate`,
+
+  expenses: `${API_BASE}/api/expenses`,
+
+  import: `${API_BASE}/api/import`,
+  exportCsv: `${API_BASE}/api/export/csv`,
+  exportExcel: `${API_BASE}/api/export/excel`,
+
+  pendingList: `${API_BASE}/api/pending-transactions`,
+  pendingGet: (token: string) => `${API_BASE}/api/pending-transaction/${token}`,
+  pendingUpdate: (token: string) => `${API_BASE}/api/pending-transaction/${token}`,
+  pendingApprove: (token: string) => `${API_BASE}/api/pending-transaction/${token}/approve`,
+  pendingDelete: (token: string) => `${API_BASE}/api/pending-transaction/${token}`,
+
+  profile: `${API_BASE}/api/profile`,
+  completeOnboarding: `${API_BASE}/api/profile/complete-onboarding`,
+
+  exampleCategories: `${API_BASE}/api/categories/examples`,
+  createCategoryBatch: `${API_BASE}/api/categories/batch`,
 };
 
-// Helper function to get category URL with ID
-export const getCategoryUrl = (id: number) => `${API_URL}/api/categories/${id}`;
+export async function authGet(url: string) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error((await res.json()).detail);
+  return res.json();
+}
 
-// Helper function to get expense URL with ID
-export const getExpenseUrl = (id: number) => `${API_URL}/api/expenses/${id}`;
+export async function authPost(url: string, body: any) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail);
+  return res.json();
+}
 
-export default API_URL;
+export async function authPut(url: string, body: any) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail);
+  return res.json();
+}
+
+export async function authDelete(url: string) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error((await res.json()).detail);
+  return res.json();
+}
