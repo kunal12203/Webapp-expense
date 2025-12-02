@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { confirmPendingTransaction, cancelPendingTransaction, parseSms, createPendingTransaction } from "../services/api";
+import { confirmPendingTransaction, cancelPendingTransaction, parseSms, createPendingTransaction } from "../config/api";
 import { X, Check, Trash2, Sparkles, Loader2, ArrowRight } from "lucide-react";
 
 interface Props { token: string; onClose: () => void; }

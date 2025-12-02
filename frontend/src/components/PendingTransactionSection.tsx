@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getPendingTransactions, confirmPendingTransaction, cancelPendingTransaction } from "../services/api";
+import { getPendingTransactions, confirmPendingTransaction, cancelPendingTransaction } from "../con";
 import { Bell, Check, X, Sparkles, AlertCircle } from "lucide-react";
 
 interface PendingTransaction {
