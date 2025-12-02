@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { API_ENDPOINTS } from "../../config/api";
 import { Loader2, Save, User, Phone, Briefcase, Calendar, Wallet } from "lucide-react";
+import IOSShortcutButton from "../onboarding/IosShortcutButton";
 
 const ProfilePage = () => {
   const [profile, setProfile] = useState<any>(null);
@@ -34,6 +35,9 @@ const ProfilePage = () => {
         <h1 className="text-3xl font-black text-slate-900 dark:text-white">Settings & Profile</h1>
         <p className="text-slate-500 mt-2">Manage your personal information and budget preferences.</p>
       </div>
+
+      {/* iOS Shortcut Integration Card */}
+      <IOSShortcutButton />
 
       <div className="glass-card p-8 md:p-10 relative overflow-hidden">
         {/* Background Decor */}
@@ -89,6 +93,11 @@ const ProfilePage = () => {
             <span>Save Changes</span>
           </button>
         </div>
+      </div>
+
+      {/* iOS Shortcut Integration */}
+      <div className="glass-card p-8 md:p-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <IOSShortcutButton standalone={true} />
       </div>
     </div>
   );

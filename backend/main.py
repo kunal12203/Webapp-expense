@@ -20,9 +20,6 @@ from email.mime.multipart import MIMEMultipart
 import io
 import csv
 
-from sqlalchemy import func
-
-
 # Import SMS parser router
 from sms_parser_api import router as sms_router
 
@@ -303,6 +300,66 @@ class CategoryMigration(Base):
 
 app = FastAPI(title="Expense Tracker API", version="3.0.0")
 app.include_router(sms_router)
+
+# ==========================================
+# iOS SHORTCUT SMS PARSER ENDPOINT
+# ==========================================
+
+@app.get("/api/user/sms-parse")
+async def user_sms_parse(
+    sms: str = Query(..., description="SMS message text"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    User-specific SMS parser for iOS Shortcuts
+    Requires authentication token in Authorization header
+    
+    Usage from iOS Shortcut:
+    GET /api/user/sms-parse?sms=Your%20A/c%20debited%20Rs.500...
+    Headers: Authorization: Bearer {user_token}
+    
+    Returns:
+    {
+        "success": true,
+        "url": "https://webapp-expense.vercel.app/add-expense/{token}",
+        "parsed_data": {...}
+    }
+    """
+    from sms_parser_api import parse_sms_with_claude
+    import secrets
+    
+    # Parse SMS using Claude AI
+    parse_result = parse_sms_with_claude(sms)
+    
+    if not parse_result.get("success"):
+        raise HTTPException(status_code=400, detail="Failed to parse SMS")
+    
+    data = parse_result["data"]
+    
+    # Create pending transaction
+    pending = PendingTransaction(
+        user_id=current_user.id,
+        amount=data.get("amount"),
+        description=data.get("merchant", "Unknown"),
+        category=data.get("category", "Other"),
+        date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
+        type="income" if data.get("transaction_type") == "credit" else "expense",
+        token=secrets.token_urlsafe(16),
+        status="pending"
+    )
+    db.add(pending)
+    db.commit()
+    
+    # Return URL for the shortcut to open
+    expense_url = f"{FRONTEND_URL}/add-expense/{pending.token}"
+    
+    return {
+        "success": True,
+        "url": expense_url,
+        "parsed_data": data,
+        "confidence": data.get("confidence", 0.5)
+    }
 
 @app.on_event("startup")
 async def startup_event():
@@ -916,7 +973,7 @@ def get_category_stats(
             Expense.user_id == current_user.id,
             Expense.category == category.name
         ).with_entities(
-            func.sum(Expense.amount)
+            db.func.sum(Expense.amount)
         ).scalar() or 0
         
         stats.append({
@@ -1436,14 +1493,15 @@ def create_categories_batch(
             skipped_count += 1
             continue
         
+        # Create category for user
         new_category = Category(
-        user_id=current_user.id,
-        name=example.name,
-        color=example.color,
-        icon=example.icon,
-        # Remove this line: description=example.description,
-        # Remove this line: is_custom=False
-    )
+            user_id=current_user.id,
+            name=example.name,
+            color=example.color,
+            icon=example.icon,
+            description=example.description,
+            is_custom=False  # Marks as selected from examples
+        )
         db.add(new_category)
         created_count += 1
     
@@ -1577,6 +1635,92 @@ def delete_category_enhanced(
         return {
             "message": f"Category '{category.name}' deleted successfully"
         }
+
+# ==========================================
+# iOS SHORTCUT INTEGRATION
+# ==========================================
+
+@app.get("/api/shortcut/generate")
+def generate_ios_shortcut(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate iOS Shortcut configuration with user's auth token pre-filled
+    
+    Returns a .shortcut file content that can be imported to iOS
+    """
+    token = create_access_token(data={"sub": current_user.username})
+    
+    # iOS Shortcut configuration in plist format
+    shortcut_config = {
+        "api_url": f"{os.getenv('API_BASE_URL', 'https://webapp-expense.onrender.com')}/api/sms-parser/user/parse",
+        "auth_token": token,
+        "user_id": current_user.id,
+        "username": current_user.username
+    }
+    
+    return {
+        "success": True,
+        "shortcut_config": shortcut_config,
+        "instructions": [
+            "1. Copy the auth_token from above",
+            "2. Open the iOS Shortcut link",
+            "3. Paste the token when prompted",
+            "4. Add shortcut to your library"
+        ]
+    }
+
+@app.post("/api/sms-parser/user/parse")
+async def parse_user_sms_authenticated(
+    sms: str = Query(..., description="SMS text to parse"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Parse SMS and create pending transaction for authenticated user
+    This endpoint is used by iOS Shortcuts
+    
+    Example: /api/sms-parser/user/parse?sms=Your%20A/c%20debited%20Rs.500
+    Headers: Authorization: Bearer <token>
+    
+    Returns: Direct URL to approve transaction
+    """
+    from sms_parser_api import parse_sms_with_claude
+    
+    # Parse SMS
+    parse_result = parse_sms_with_claude(sms)
+    
+    if not parse_result.get("success"):
+        raise HTTPException(status_code=400, detail="Failed to parse SMS")
+    
+    data = parse_result["data"]
+    
+    # Create pending transaction
+    pending = PendingTransaction(
+        user_id=current_user.id,
+        token=token_urlsafe(16),
+        amount=data.get("amount"),
+        description=data.get("merchant", "Unknown"),
+        category=data.get("category", "Other"),
+        date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
+        type="income" if data.get("transaction_type") == "credit" else "expense",
+        status="pending"
+    )
+    
+    db.add(pending)
+    db.commit()
+    db.refresh(pending)
+    
+    # Return URL for approval
+    approval_url = f"{FRONTEND_URL}/add-expense/{pending.token}"
+    
+    return {
+        "success": True,
+        "url": approval_url,
+        "parsed_data": data,
+        "transaction_id": pending.id,
+        "message": "Transaction parsed successfully. Open URL to approve."
+    }
 
 # ==========================================
 # HEALTH CHECK
