@@ -1,3 +1,6 @@
+
+import * as Icons from "lucide-react";
+
 export function getLucideIcon(iconName: string) {
     const pascal = iconName
       .split("-")

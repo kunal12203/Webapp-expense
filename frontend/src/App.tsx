@@ -36,7 +36,10 @@ const App = () => {
     }
   };
 
-  useEffect(() => loadProfile(), []);
+  useEffect(() => {
+    loadProfile();   // <-- call without returning Promise
+  }, []);
+  
 
   return (
     <BrowserRouter>

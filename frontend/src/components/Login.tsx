@@ -4,7 +4,7 @@ import { LogIn, Mail, Lock, Eye, EyeOff, Wallet } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 
 interface LoginProps {
-  onLoginSuccess: (token: string) => void;
+  onLoginSuccess?: (token: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
@@ -38,7 +38,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         throw new Error(data.detail || 'Login failed');
       }
 
-      onLoginSuccess(data.access_token);
+      onLoginSuccess?.(data.access_token);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {

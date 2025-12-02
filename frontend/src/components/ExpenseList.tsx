@@ -35,7 +35,10 @@ const ExpenseList = ({ refreshSignal }: any) => {
     setLoading(false);
   };
 
-  useEffect(() => loadData(), [refreshSignal]);
+  useEffect(() => {
+    loadData();
+  }, [refreshSignal]);
+  
 
   const deleteExpense = async (id: number) => {
     const token = localStorage.getItem("token");
@@ -46,7 +49,7 @@ const ExpenseList = ({ refreshSignal }: any) => {
     loadData();
   };
 
-  const findCategory = (name: string) =>
+  const findCategory = (name: string): any | undefined =>
     categories.find((c: any) => c.name === name);
 
   if (loading)
@@ -60,14 +63,14 @@ const ExpenseList = ({ refreshSignal }: any) => {
     <div className="space-y-3">
       {expenses.map((e: any) => {
         const cat = findCategory(e.category);
-        const Icon = getLucideIcon(cat?.icon || "tag");
+        const Icon = cat ? getLucideIcon(cat.icon || "tag") : Icons.Tag;
 
         return (
           <div key={e.id} className="p-3 bg-white rounded-xl border flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: cat?.color }}
+                style={{ background: cat?.color || '#6366f1' }}
               >
                 <Icon className="text-white" />
               </div>

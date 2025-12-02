@@ -33,7 +33,10 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
     setCategories(await res.json());
   };
 
-  useEffect(() => loadCategories(), []);
+  useEffect(() => {
+    loadCategories();
+  }, []);
+  
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();

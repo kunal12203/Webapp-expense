@@ -16,7 +16,9 @@ const ProfilePage = () => {
     setProfile(await res.json());
   };
 
-  useEffect(() => load(), []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const update = async () => {
     setSaving(true);

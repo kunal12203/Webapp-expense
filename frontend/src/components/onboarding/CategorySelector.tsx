@@ -26,7 +26,9 @@ const CategorySelector = () => {
     setExamples(res);
   };
 
-  useEffect(() => loadExamples(), []);
+  useEffect(() => {
+    loadExamples();
+  }, []);
 
   const toggle = (id: number) => {
     setSelected((prev) =>

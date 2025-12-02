@@ -77,3 +77,29 @@ export async function authDelete(url: string) {
   if (!res.ok) throw new Error((await res.json()).detail);
   return res.json();
 }
+
+export async function getPendingTransactions() {
+  return authGet(API_ENDPOINTS.pendingList);
+}
+
+export async function confirmPendingTransaction(
+  token: string,
+  amount: number,
+  category: string,
+  description: string,
+  date: string,
+  type: string
+) {
+  return authPost(API_ENDPOINTS.pendingApprove(token), {
+    amount,
+    category,
+    description,
+    date,
+    type,
+  });
+}
+
+export async function cancelPendingTransaction(token: string) {
+  return authDelete(API_ENDPOINTS.pendingDelete(token));
+}
+

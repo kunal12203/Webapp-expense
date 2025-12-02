@@ -7,6 +7,7 @@ import {
   authGet,
   authPut,
   authPost,
+  authDelete,
 } from "../config/api";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
@@ -26,7 +27,10 @@ const PendingTransactionModal = () => {
     }
   };
 
-  useEffect(() => load(), []);
+  useEffect(() => {
+    load();
+  }, []);
+  
 
   const approve = async () => {
     await authPost(API_ENDPOINTS.pendingApprove(token!), {});

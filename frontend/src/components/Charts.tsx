@@ -23,8 +23,10 @@ const Charts = () => {
     setStats(await res.json());
   };
 
-  useEffect(() => loadStats(), []);
-
+  useEffect(() => {
+    loadStats();
+  }, []);
+  
   const data = {
     labels: stats.map((s: any) => s.category),
     datasets: [
