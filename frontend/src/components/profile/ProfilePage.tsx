@@ -36,9 +36,6 @@ const ProfilePage = () => {
         <p className="text-slate-500 mt-2">Manage your personal information and budget preferences.</p>
       </div>
 
-      {/* iOS Shortcut Integration Card */}
-      <IOSShortcutButton />
-
       <div className="glass-card p-8 md:p-10 relative overflow-hidden">
         {/* Background Decor */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
