@@ -32,6 +32,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expense_tracker.db")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+API_BASE = os.getenv("API_BASE_URL", "https://webapp-expense.onrender.com")
 
 # 📧 Email Configuration
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -790,6 +791,110 @@ async def user_sms_parse(
     # Create pending transaction
     pending = PendingTransaction(
         user_id=current_user.id,
+        amount=data.get("amount"),
+        description=data.get("merchant", "Unknown"),
+        category=data.get("category", "Other"),
+        date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
+        type="income" if data.get("transaction_type") == "credit" else "expense",
+        token=secrets.token_urlsafe(16),
+        status="pending"
+    )
+    db.add(pending)
+    db.commit()
+    
+    # Return URL for the shortcut to open
+    expense_url = f"{FRONTEND_URL}/add-expense/{pending.token}"
+    
+    return {
+        "success": True,
+        "url": expense_url,
+        "parsed_data": data,
+        "confidence": data.get("confidence", 0.5)
+    }
+
+# ==========================================
+# GENERATE PERSONALIZED SHORTCUT URL
+# ==========================================
+
+@app.get("/api/user/shortcut-url")
+async def get_personalized_shortcut_url(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a personalized URL for iOS Shortcuts that includes the user's auth token
+    This URL can be directly used in iOS Shortcuts without manual token configuration
+    
+    Returns a complete URL that:
+    1. Accepts SMS text as query parameter
+    2. Has auth token embedded
+    3. Returns the expense confirmation URL
+    
+    Usage: User copies this URL and pastes it in their iOS Shortcut
+    """
+    # Get user's current token from the request
+    # Note: In production, consider generating a long-lived API key instead
+    from jose import jwt
+    
+    # Create a long-lived token (30 days) specifically for shortcuts
+    shortcut_token_data = {"sub": current_user.username}
+    shortcut_expire = datetime.utcnow() + timedelta(days=30)
+    shortcut_token_data.update({"exp": shortcut_expire})
+    shortcut_token = jwt.encode(shortcut_token_data, SECRET_KEY, algorithm=ALGORITHM)
+    
+    # Generate the personalized URL with embedded token
+    base_url = f"{API_BASE}/api/user/sms-parse-public"
+    personalized_url = f"{base_url}?token={shortcut_token}&sms={{SMS_TEXT}}"
+    
+    return {
+        "success": True,
+        "shortcut_url": personalized_url,
+        "instructions": "Replace {{SMS_TEXT}} with URL-encoded SMS text in your shortcut",
+        "example": f"{base_url}?token={shortcut_token}&sms=Your%20A/c%20debited%20Rs.500%20at%20Starbucks",
+        "expires_in_days": 30,
+        "token": shortcut_token
+    }
+
+@app.get("/api/user/sms-parse-public")
+async def user_sms_parse_public(
+    token: str = Query(..., description="User's shortcut token"),
+    sms: str = Query(..., description="SMS message text"),
+    db: Session = Depends(get_db)
+):
+    """
+    Public SMS parser endpoint that accepts token as query parameter
+    Used by iOS Shortcuts with personalized URL
+    
+    This endpoint doesn't require Authorization header - token is in the URL
+    """
+    import secrets
+    
+    # Verify token
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # Get user
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Parse SMS using Claude AI
+    from sms_parser_api import parse_sms_with_claude
+    parse_result = parse_sms_with_claude(sms)
+    
+    if not parse_result.get("success"):
+        raise HTTPException(status_code=400, detail="Failed to parse SMS")
+    
+    data = parse_result["data"]
+    
+    # Create pending transaction
+    pending = PendingTransaction(
+        user_id=user.id,
         amount=data.get("amount"),
         description=data.get("merchant", "Unknown"),
         category=data.get("category", "Other"),

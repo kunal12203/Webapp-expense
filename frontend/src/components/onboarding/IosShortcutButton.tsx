@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Smartphone, Download, Copy, Check, ExternalLink, AlertCircle, Link as LinkIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Smartphone, Download, Copy, Check, ExternalLink, AlertCircle, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { API_ENDPOINTS, authGet } from '../../config/api';
 
 interface IOSShortcutButtonProps {
   onSkip?: () => void;
@@ -10,10 +11,28 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [personalizedUrl, setPersonalizedUrl] = useState<string>('');
+  const [loading, setLoading] = useState(false);
   const token = localStorage.getItem('token');
   
-  const API_URL = 'https://webapp-expense.onrender.com/api/user/sms-parse';
   const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/4b61ce735779484b96688db44c7df2c7';
+
+  // Fetch personalized shortcut URL on mount
+  useEffect(() => {
+    const fetchPersonalizedUrl = async () => {
+      setLoading(true);
+      try {
+        const response = await authGet(`${API_ENDPOINTS.profile.replace('/profile', '')}/api/user/shortcut-url`);
+        setPersonalizedUrl(response.shortcut_url);
+      } catch (error) {
+        console.error('Failed to fetch personalized URL:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPersonalizedUrl();
+  }, []);
 
   const copyToken = () => {
     if (token) {
@@ -23,10 +42,14 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
     }
   };
 
-  const copyApiUrl = () => {
-    navigator.clipboard.writeText(API_URL);
-    setCopiedUrl(true);
-    setTimeout(() => setCopiedUrl(false), 2000);
+  const copyPersonalizedUrl = () => {
+    if (personalizedUrl) {
+      // Replace placeholder with actual SMS variable syntax for shortcuts
+      const shortcutReadyUrl = personalizedUrl.replace('{SMS_TEXT}', '[SMS Text]');
+      navigator.clipboard.writeText(personalizedUrl);
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    }
   };
 
   const openShortcut = () => {
@@ -52,110 +75,91 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
               iOS Shortcut Automation
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Parse bank SMS messages automatically and add expenses with one tap
+              Parse bank SMS messages automatically with AI - just copy your personalized URL!
             </p>
           </div>
         </div>
 
-        {/* Main Action Buttons */}
+        {/* Main Action */}
         {!showInstructions ? (
           <div className="space-y-4">
             
-            {/* Add Shortcut Button */}
-            <div className="p-5 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800">
+            {/* Personalized URL - Main Feature */}
+            <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-                  <Download className="w-5 h-5 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
+                  <LinkIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white">Add to iPhone Shortcuts</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">One-click setup</p>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Your Personalized URL</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">One-click copy, ready for iOS Shortcut</p>
                 </div>
               </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                  <span className="ml-2 text-sm text-slate-500">Generating your URL...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 break-all">
+                    <code className="text-xs text-slate-600 dark:text-slate-300 font-mono">
+                      {personalizedUrl || 'Failed to generate URL'}
+                    </code>
+                  </div>
+
+                  <button
+                    onClick={copyPersonalizedUrl}
+                    disabled={!personalizedUrl}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {copiedUrl ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        <span>Copied to Clipboard!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" />
+                        <span>Copy Personalized URL</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Add Shortcut Button */}
+            <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3 mb-3">
+                <Download className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Next: Add iOS Shortcut</h4>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                After copying your URL, add the shortcut to your iPhone
+              </p>
               <button
                 onClick={openShortcut}
-                className="w-full btn-gradient py-3 text-sm shadow-lg shadow-indigo-500/30"
+                className="w-full btn-ghost py-2.5 text-sm"
               >
                 <ExternalLink className="w-4 h-4" />
                 Open Shortcut Link
               </button>
             </div>
 
-            {/* API Configuration Section */}
-            <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-              <h4 className="font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
-                <LinkIcon className="w-4 h-4" />
-                Configuration Details
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                You'll need these to set up the shortcut manually
-              </p>
-              
-              <div className="space-y-3">
-                {/* Auth Token */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">
-                    1. Your Authentication Token
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="flex-1 px-3 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
-                      {token?.substring(0, 40)}...
-                    </div>
-                    <button
-                      onClick={copyToken}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-                    >
-                      {copiedToken ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-600" />
-                          <span className="text-emerald-600">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* API URL */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 block">
-                    2. Your Personalized API URL
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="flex-1 px-3 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-300 overflow-hidden text-ellipsis whitespace-nowrap">
-                      {API_URL}
-                    </div>
-                    <button
-                      onClick={copyApiUrl}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
-                    >
-                      {copiedUrl ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-600" />
-                          <span className="text-emerald-600">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+            {/* Instructions */}
+            <div className="flex items-start gap-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <AlertCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-800 dark:text-emerald-200 space-y-1">
+                <p className="font-bold">How to use:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>Copy your personalized URL above</li>
+                  <li>Open the iOS Shortcut</li>
+                  <li>Paste the URL when setting up</li>
+                  <li>When you get a bank SMS, run the shortcut!</li>
+                </ol>
               </div>
-            </div>
-
-            {/* Info Banner */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-800 dark:text-blue-200">
-                <strong>How it works:</strong> Click "Open Shortcut Link" → Tap "Add Shortcut" → When you receive a bank SMS, share it with this shortcut to automatically create an expense.
-              </p>
             </div>
           </div>
         ) : (
@@ -173,7 +177,7 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold">2.</span>
-                  <span>The shortcut is pre-configured with your token and API URL</span>
+                  <span>Paste your personalized URL when prompted</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold">3.</span>
@@ -181,7 +185,7 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold">4.</span>
-                  <span>Confirm the parsed details and save!</span>
+                  <span>The AI will parse it and open pre-filled confirmation!</span>
                 </li>
               </ol>
             </div>
