@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { API_ENDPOINTS } from "../../config/api";
 import { Loader2, Save, User, Phone, Briefcase, Calendar, Wallet } from "lucide-react";
-import IOSShortcutButton from "../onboarding/IOSShortcutButton";
+import IOSShortcutButton from "../onboarding/IosShortcutButton";
 
 const ProfilePage = () => {
   const [profile, setProfile] = useState<any>(null);
