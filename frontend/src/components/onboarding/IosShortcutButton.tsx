@@ -24,12 +24,22 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
     const fetchPersonalizedUrl = async () => {
       setLoading(true);
       setError('');
+      
+      const url = `${API_BASE}/api/user/shortcut-url`;
+      console.log('🔍 Fetching personalized URL from:', url);
+      console.log('🔑 Token exists:', !!token);
+      
       try {
-        const response = await authGet(`${API_BASE}/api/user/shortcut-url`);
+        const response = await authGet(url);
+        console.log('✅ Response received:', response);
         setPersonalizedUrl(response.shortcut_url);
       } catch (error: any) {
-        console.error('Failed to fetch personalized URL:', error);
-        setError(error.message || 'Failed to load URL');
+        console.error('❌ Failed to fetch personalized URL:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        setError(error.message || 'Failed to load URL. Check console for details.');
       } finally {
         setLoading(false);
       }
@@ -106,13 +116,40 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                   <span className="ml-2 text-sm text-slate-500">Generating your URL...</span>
                 </div>
               ) : error ? (
-                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800">
-                  <p className="text-sm text-rose-600 dark:text-rose-400 mb-2">
-                    <strong>Failed to load URL:</strong> {error}
-                  </p>
-                  <p className="text-xs text-rose-500 dark:text-rose-400">
-                    Please check that the backend is deployed and the endpoint exists.
-                  </p>
+                <div className="space-y-3">
+                  <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800">
+                    <p className="text-sm text-rose-600 dark:text-rose-400 mb-2 font-semibold">
+                      ⚠️ Failed to load personalized URL
+                    </p>
+                    <p className="text-xs text-rose-500 dark:text-rose-400 mb-3">
+                      {error}
+                    </p>
+                    <details className="text-xs text-rose-500">
+                      <summary className="cursor-pointer font-semibold mb-2">Possible causes:</summary>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>Backend not deployed yet</li>
+                        <li>Endpoint /api/user/shortcut-url missing</li>
+                        <li>Check browser console (F12) for details</li>
+                        <li>Check Render backend logs</li>
+                      </ul>
+                    </details>
+                  </div>
+                  
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full btn-ghost py-2.5 text-sm"
+                  >
+                    🔄 Retry
+                  </button>
+                  
+                  <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 font-semibold">
+                      Manual Setup (If auto-load fails):
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      You can still use the old method with token + API URL below
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -168,9 +205,9 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                 <p className="font-bold">How to use:</p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>Copy your personalized URL above</li>
-                  <li>Open the iOS Shortcut</li>
-                  <li>Paste the URL when setting up</li>
+                  <li>Open the iOS Shortcut and paste it</li>
                   <li>When you get a bank SMS, run the shortcut!</li>
+                  <li>Your browser opens with pre-filled transaction to confirm</li>
                 </ol>
               </div>
             </div>

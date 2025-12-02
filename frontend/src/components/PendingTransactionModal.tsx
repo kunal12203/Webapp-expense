@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_ENDPOINTS, authGet, authPost, authDelete, authPut } from "../config/api";
-import { Loader2, CheckCircle2, XCircle, ShieldCheck, Calendar, Tag, ArrowLeft, Edit2, DollarSign, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, ShieldCheck, Calendar, Tag, ArrowLeft, Edit2, FileText } from "lucide-react";
 
 const PendingTransactionModal = () => {
   const { token } = useParams();
@@ -10,6 +10,7 @@ const PendingTransactionModal = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   
   // Edit form state
   const [editData, setEditData] = useState({
@@ -23,15 +24,22 @@ const PendingTransactionModal = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await authGet(API_ENDPOINTS.pendingGet(token!));
-        setTx(res);
+        // Load both pending transaction and categories
+        const [txRes, categoriesRes] = await Promise.all([
+          authGet(API_ENDPOINTS.pendingGet(token!)),
+          authGet(API_ENDPOINTS.categories)
+        ]);
+        
+        setTx(txRes);
+        setCategories(categoriesRes);
+        
         // Initialize edit form with fetched data
         setEditData({
-          amount: res.amount?.toString() || "",
-          category: res.category || "",
-          description: res.description || "",
-          date: res.date || "",
-          type: res.type || "expense"
+          amount: txRes.amount?.toString() || "",
+          category: txRes.category || "",
+          description: txRes.description || "",
+          date: txRes.date || "",
+          type: txRes.type || "expense"
         });
       } catch (e) {
         console.error(e);
@@ -201,7 +209,7 @@ const PendingTransactionModal = () => {
             {/* Amount */}
             <div>
               <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-2">
-                <DollarSign className="w-3 h-3" />
+                <span className="text-base font-bold">₹</span>
                 Amount
               </label>
               <input
@@ -220,13 +228,16 @@ const PendingTransactionModal = () => {
                 <Tag className="w-3 h-3" />
                 Category
               </label>
-              <input
-                type="text"
+              <select
                 value={editData.category}
                 onChange={(e) => setEditData({...editData, category: e.target.value})}
-                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Food, Transport, etc."
-              />
+                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none cursor-pointer"
+              >
+                <option value="">Select Category</option>
+                {categories.map((cat: any) => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Description */}

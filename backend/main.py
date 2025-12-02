@@ -838,17 +838,17 @@ async def get_personalized_shortcut_url(
     shortcut_token_data.update({"exp": shortcut_expire})
     shortcut_token = jwt.encode(shortcut_token_data, SECRET_KEY, algorithm=ALGORITHM)
     
-    # Generate the personalized URL with embedded token
-    base_url = f"{API_BASE}/api/user/sms-parse-public"
-    personalized_url = f"{base_url}?token={shortcut_token}&sms={{SMS_TEXT}}"
+    # Generate the personalized FRONTEND URL with embedded token
+    # User pastes this in iOS Shortcut, it goes directly to frontend with auth
+    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={shortcut_token}&sms={{SMS_TEXT}}"
     
     return {
         "success": True,
         "shortcut_url": personalized_url,
-        "instructions": "Replace {{SMS_TEXT}} with URL-encoded SMS text in your shortcut",
-        "example": f"{base_url}?token={shortcut_token}&sms=Your%20A/c%20debited%20Rs.500%20at%20Starbucks",
+        "instructions": "Paste this URL in your iOS Shortcut. Replace {SMS_TEXT} with the SMS text variable.",
+        "example": f"{FRONTEND_URL}/add-expense-from-sms?token={shortcut_token}&sms=Your%20A/c%20debited%20Rs.500%20at%20Starbucks",
         "expires_in_days": 30,
-        "token": shortcut_token
+        "note": "This URL works even without logging in - the token is embedded"
     }
 
 @app.get("/api/user/sms-parse-public")

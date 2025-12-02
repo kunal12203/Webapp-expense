@@ -41,7 +41,7 @@ export const API_ENDPOINTS = {
 // --- Helper Functions for Authenticated Requests ---
 
 export async function authGet(url: string) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("temp_auth_token");
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -50,7 +50,7 @@ export async function authGet(url: string) {
 }
 
 export async function authPost(url: string, body: any) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("temp_auth_token");
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -64,7 +64,7 @@ export async function authPost(url: string, body: any) {
 }
 
 export async function authPut(url: string, body: any) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("temp_auth_token");
   const res = await fetch(url, {
     method: "PUT",
     headers: {
@@ -78,7 +78,7 @@ export async function authPut(url: string, body: any) {
 }
 
 export async function authDelete(url: string) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || sessionStorage.getItem("temp_auth_token");
   const res = await fetch(url, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },

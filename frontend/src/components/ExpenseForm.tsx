@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { API_ENDPOINTS } from "../config/api";
-import { Loader2, Plus, Calendar, Type, DollarSign, AlignLeft, ArrowDown, ArrowUp } from "lucide-react";
+import { Loader2, Plus, Calendar, Type, AlignLeft, ArrowDown, ArrowUp } from "lucide-react";
 
 const ExpenseForm = ({ onExpenseAdded }: any) => {
   const [categories, setCategories] = useState([]);
