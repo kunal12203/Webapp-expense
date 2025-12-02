@@ -69,6 +69,17 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    
+    # Profile fields
+    full_name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    occupation = Column(String, nullable=True)
+    monthly_budget = Column(Float, nullable=True)
+    onboarding_completed = Column(Integer, default=0)  # SQLite uses 0/1 for boolean
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
