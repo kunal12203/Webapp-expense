@@ -4,66 +4,72 @@
 
 @layer base {
   body {
-    @apply bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100;
-    @apply font-sans antialiased min-h-screen selection:bg-indigo-500/30;
-    /* Optional: Subtle Mesh Gradient Background */
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
-    background-attachment: fixed;
+    @apply bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-slate-200 font-sans antialiased min-h-screen selection:bg-indigo-500/30;
+    overflow-x: hidden;
   }
 }
 
 @layer components {
-  /* Premium Glass Panel */
-  .glass-panel {
-    @apply bg-white/70 dark:bg-slate-900/60;
-    @apply backdrop-blur-2xl backdrop-saturate-[1.8];
-    @apply border border-white/40 dark:border-slate-700/40;
-    @apply shadow-xl shadow-slate-200/40 dark:shadow-black/40;
-    @apply rounded-[2rem]; /* More rounded for modern look */
-    @apply transition-all duration-300;
-    @apply relative overflow-hidden;
+  /* --- Glassmorphism --- */
+  .glass-card {
+    @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl;
+    @apply border border-white/50 dark:border-slate-800/50;
+    @apply shadow-xl shadow-indigo-500/5 dark:shadow-black/20;
+    @apply rounded-3xl transition-all duration-300;
   }
   
-  .glass-panel:hover {
-    @apply border-indigo-500/30 dark:border-indigo-400/30;
-    @apply shadow-2xl shadow-indigo-500/10;
-    @apply -translate-y-1; /* Subtle lift */
+  .glass-card-hover {
+    @apply hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 hover:border-indigo-500/20 dark:hover:border-indigo-400/20;
   }
 
-  /* Buttons */
-  .btn {
-    @apply px-5 py-2.5 rounded-2xl font-medium text-sm transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden;
-  }
-
-  .btn-primary {
-    @apply bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/30 border border-indigo-400/20;
-  }
-
-  .input {
+  /* --- Inputs --- */
+  .input-field {
     @apply w-full px-5 py-3.5 rounded-2xl text-sm font-medium;
-    @apply bg-slate-50/50 dark:bg-slate-800/50;
+    @apply bg-slate-50/80 dark:bg-slate-800/80;
     @apply border border-slate-200 dark:border-slate-700;
-    @apply focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-slate-800;
-    @apply transition-all duration-300 outline-none;
+    @apply focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-500/20;
+    @apply transition-all duration-200 outline-none;
+    @apply placeholder:text-slate-400 dark:placeholder:text-slate-500;
+  }
+
+  /* --- Buttons --- */
+  .btn-gradient {
+    @apply bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 text-white;
+    @apply hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-[1.02];
+    @apply active:scale-95;
+    @apply px-6 py-3 rounded-2xl font-bold tracking-wide transition-all duration-300;
+    @apply flex items-center justify-center gap-2;
+  }
+
+  .btn-ghost {
+    @apply bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300;
+    @apply border border-slate-200 dark:border-slate-700;
+    @apply hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400;
+    @apply active:scale-95;
+    @apply px-6 py-3 rounded-2xl font-semibold transition-all duration-300;
+    @apply flex items-center justify-center gap-2;
+  }
+
+  /* --- Scrollbar --- */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-indigo-400;
   }
 }
 
-/* Smooth Scrolling */
-html {
-  scroll-behavior: smooth;
+/* --- Animated Background Blobs --- */
+.blob {
+  @apply absolute rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob;
 }
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-indigo-400 dark:hover:bg-indigo-600 transition-colors;
-}
+.blob-indigo { @apply bg-indigo-300 dark:bg-indigo-900; }
+.blob-purple { @apply bg-purple-300 dark:bg-purple-900; }
+.blob-pink { @apply bg-pink-300 dark:bg-pink-900; }

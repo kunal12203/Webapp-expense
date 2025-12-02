@@ -1,92 +1,55 @@
-// src/components/CategoryManager.tsx
-
 import React, { useEffect, useState } from "react";
 import * as Icons from "lucide-react";
-import { X, Edit, Trash2, Plus, Loader } from "lucide-react";
+import { X, Trash2, Plus, Loader2, Tag, Palette } from "lucide-react";
 import { API_ENDPOINTS } from "../config/api";
 
 function getLucideIcon(iconName: string) {
-  const pascal = iconName
-    .split("-")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join("");
-
+  const pascal = iconName ? iconName.split("-").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("") : "Tag";
   return (Icons as any)[pascal] || Icons.Tag;
 }
 
 const CategoryManager = ({ isOpen, onClose, onUpdate }: any) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    color: "#667EEA",
-    icon: "tag",
-  });
-
+  const [newCategory, setNewCategory] = useState({ name: "", color: "#667EEA", icon: "Tag" });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
   const loadCategories = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(API_ENDPOINTS.categories, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setCategories(data);
-    } catch {
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch(API_ENDPOINTS.categories, { headers: { Authorization: `Bearer ${token}` } });
+      setCategories(await res.json());
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    if (isOpen) loadCategories();
-  }, [isOpen]);
+  useEffect(() => { if (isOpen) loadCategories(); }, [isOpen]);
 
   const handleAdd = async () => {
-    if (!newCategory.name.trim()) {
-      setError("Category name required");
-      return;
-    }
-
+    if (!newCategory.name.trim()) return;
     setSaving(true);
-
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(API_ENDPOINTS.categories, {
+      await fetch(API_ENDPOINTS.categories, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(newCategory),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Failed");
-
-      setNewCategory({ name: "", color: "#667EEA", icon: "tag" });
+      setNewCategory({ name: "", color: "#667EEA", icon: "Tag" });
       loadCategories();
-
       if (onUpdate) onUpdate();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
+    if(!window.confirm("Delete this category? Transactions associated with it might be affected.")) return;
     const token = localStorage.getItem("token");
-    const res = await fetch(`${API_ENDPOINTS.categories}/${id}`, {
+    await fetch(`${API_ENDPOINTS.categories}/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    await res.json();
     loadCategories();
     if (onUpdate) onUpdate();
   };
@@ -94,83 +57,94 @@ const CategoryManager = ({ isOpen, onClose, onUpdate }: any) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-lg">Manage Categories</h2>
-          <button onClick={onClose}>
-            <X />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300" 
+        onClick={onClose} 
+      />
+      
+      {/* Modal */}
+      <div className="glass-card w-full max-w-lg p-0 relative animate-slide-up bg-white dark:bg-slate-900 overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+            <Tag className="w-5 h-5 text-indigo-600" /> Manage Categories
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+            <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-6">
-            <Loader className="animate-spin" />
-          </div>
-        ) : (
-          <div className="space-y-4 max-h-72 overflow-y-auto">
-            {categories.map((cat: any) => {
+        {/* Category List */}
+        <div className="p-6 max-h-[350px] overflow-y-auto space-y-2 custom-scrollbar">
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-indigo-600" /></div>
+          ) : (
+            categories.map((cat: any) => {
               const Icon = getLucideIcon(cat.icon);
               return (
-                <div
-                  key={cat.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center"
-                      style={{ background: cat.color }}
-                    >
-                      <Icon className="text-white" />
+                <div key={cat.id} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md transition-transform group-hover:scale-110" style={{ background: cat.color }}>
+                      <Icon className="w-5 h-5" />
                     </div>
-
-                    <div className="font-medium">{cat.name}</div>
+                    <div>
+                      <div className="font-bold text-sm text-slate-800 dark:text-slate-200">{cat.name}</div>
+                      <div className="text-xs text-slate-400 font-mono">Icon: {cat.icon}</div>
+                    </div>
                   </div>
-
-                  <div className="flex gap-2">
-                    <button className="p-2 rounded-md bg-red-50" onClick={() => handleDelete(cat.id)}>
-                      <Trash2 className="text-red-600" />
-                    </button>
-                  </div>
+                  <button onClick={() => handleDelete(cat.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               );
-            })}
+            })
+          )}
+        </div>
+
+        {/* Footer / Add New */}
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Add New Category</h3>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <input 
+                className="input-field flex-1" 
+                placeholder="Category Name (e.g. Travel)" 
+                value={newCategory.name} 
+                onChange={e => setNewCategory({...newCategory, name: e.target.value})} 
+              />
+              <div className="relative group">
+                <div className="w-12 h-full rounded-2xl border-2 border-slate-200 dark:border-slate-700 overflow-hidden cursor-pointer shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: newCategory.color }}>
+                  <input 
+                    type="color" 
+                    className="opacity-0 w-full h-full cursor-pointer absolute inset-0" 
+                    value={newCategory.color} 
+                    onChange={e => setNewCategory({...newCategory, color: e.target.value})} 
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <input 
+                className="input-field flex-1" 
+                placeholder="Icon Name (e.g. Plane, Coffee, Car)" 
+                value={newCategory.icon} 
+                onChange={e => setNewCategory({...newCategory, icon: e.target.value})} 
+              />
+              <button 
+                onClick={handleAdd} 
+                disabled={saving} 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-2xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <Plus className="w-5 h-5" />}
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 text-center pt-2">
+              Tip: Use <a href="https://lucide.dev/icons" target="_blank" className="text-indigo-500 underline" rel="noreferrer">Lucide icon names</a>.
+            </p>
           </div>
-        )}
-
-        <div className="mt-6 border-t pt-4">
-          <h3 className="font-medium mb-2">Create New</h3>
-
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-
-          <input
-            className="w-full p-2 border rounded-lg mb-2"
-            placeholder="Category Name"
-            value={newCategory.name}
-            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-          />
-
-          <input
-            type="color"
-            className="w-12 h-10 rounded mb-2"
-            value={newCategory.color}
-            onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-          />
-
-          <input
-            className="w-full p-2 border rounded-lg mb-4"
-            placeholder="Icon (shopping-bag)"
-            value={newCategory.icon}
-            onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
-          />
-
-          <button
-            onClick={handleAdd}
-            disabled={saving}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg flex items-center justify-center gap-2"
-          >
-            <Plus /> {saving ? "Saving..." : "Add Category"}
-          </button>
         </div>
       </div>
     </div>

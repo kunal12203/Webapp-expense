@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
-// --- Internal CountUp Component for Animation ---
+// --- Internal CountUp Component ---
 const CountUp = ({ end, prefix = "" }: { end: number; prefix?: string }) => {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     let start = 0;
-    const duration = 1500; // 1.5 seconds
-    const increment = end / (duration / 16); // 60fps
+    const duration = 1000;
+    const increment = end / (duration / 16); 
 
     const timer = setInterval(() => {
       start += increment;
-      if (start >= end) {
+      if ((increment > 0 && start >= end) || (increment < 0 && start <= end)) {
         setCount(end);
         clearInterval(timer);
       } else {
@@ -43,36 +43,29 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ balance, income, expense
     amount, 
     icon: Icon, 
     colorClass, 
-    bgClass,
+    bgGradient,
+    iconBg,
     delay 
-  }: { 
-    title: string; 
-    amount: number; 
-    icon: any; 
-    colorClass: string;
-    bgClass: string;
-    delay: string;
-  }) => (
+  }: any) => (
     <div 
-      className="glass-panel p-6 relative group hover:scale-[1.02] transition-transform duration-500"
-      style={{ animation: `slideUp 0.6s ease-out forwards ${delay}` }}
+      className="glass-card p-6 relative overflow-hidden group hover:scale-[1.02] hover:-translate-y-1 transition-all duration-500 cursor-default"
     >
       {/* Decorative Glow Background */}
-      <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-0 group-hover:opacity-10 ${bgClass} blur-3xl transition-opacity duration-500`} />
+      <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full opacity-0 group-hover:opacity-20 bg-gradient-to-br ${bgGradient} blur-2xl transition-opacity duration-500`} />
       
-      <div className="flex justify-between items-start mb-6">
-        <div className={`p-3.5 rounded-2xl ${bgClass} ${colorClass} bg-opacity-10 ring-1 ring-inset ring-black/5 dark:ring-white/10`}>
+      <div className="flex justify-between items-start mb-4 relative z-10">
+        <div className={`p-3.5 rounded-2xl ${iconBg} ${colorClass} bg-opacity-10 dark:bg-opacity-20 ring-1 ring-inset ring-black/5 dark:ring-white/10`}>
           <Icon className="w-6 h-6" />
         </div>
-        <div className="flex items-center gap-1 text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-          Last 30 days
+        <div className={`px-2.5 py-1 rounded-full text-xs font-bold bg-white/50 dark:bg-black/20 border border-white/20 backdrop-blur-sm ${colorClass}`}>
+          Running Total
         </div>
       </div>
       
-      <div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold mb-2 tracking-wide uppercase">{title}</p>
-        <h3 className={`text-3xl font-black tracking-tight ${colorClass}`}>
-          <CountUp end={amount} prefix={title === "Total Balance" ? "₹" : "₹"} />
+      <div className="relative z-10">
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold mb-1 tracking-wide uppercase">{title}</p>
+        <h3 className={`text-3xl md:text-4xl font-black tracking-tight text-slate-800 dark:text-white`}>
+          <CountUp end={amount} prefix="₹" />
         </h3>
       </div>
     </div>
@@ -85,24 +78,24 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ balance, income, expense
         amount={balance} 
         icon={Wallet} 
         colorClass="text-indigo-600 dark:text-indigo-400"
-        bgClass="bg-indigo-500"
-        delay="0s"
+        iconBg="bg-indigo-500"
+        bgGradient="from-indigo-500 to-blue-500"
       />
       <Card 
-        title="Total Income" 
+        title="Income" 
         amount={income} 
         icon={TrendingUp} 
         colorClass="text-emerald-600 dark:text-emerald-400"
-        bgClass="bg-emerald-500"
-        delay="0.1s"
+        iconBg="bg-emerald-500"
+        bgGradient="from-emerald-500 to-teal-500"
       />
       <Card 
-        title="Total Spending" 
+        title="Expenses" 
         amount={expenses} 
         icon={TrendingDown} 
         colorClass="text-rose-600 dark:text-rose-400"
-        bgClass="bg-rose-500"
-        delay="0.2s"
+        iconBg="bg-rose-500"
+        bgGradient="from-rose-500 to-pink-500"
       />
     </div>
   );

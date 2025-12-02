@@ -1,37 +1,30 @@
-// src/components/Signup.tsx
-
 import React from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import SignupForm from "./onboarding/SignupForm";
-import { useNavigate } from "react-router-dom";
-
 
 const Signup = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-1/2 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
+      {/* Dynamic Background */}
+      <div className="absolute top-[-20%] left-[-20%] w-[800px] h-[800px] rounded-full bg-indigo-500/5 blur-[150px]" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[800px] h-[800px] rounded-full bg-purple-500/5 blur-[150px]" />
 
-      <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-2xl max-w-md w-full border border-white/20">
+      <div className="glass-card p-8 md:p-12 w-full max-w-xl relative z-10 animate-slide-up border-t-4 border-indigo-500">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-10">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-3 rounded-2xl shadow-lg">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-2xl shadow-xl shadow-indigo-500/20">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Welcome to Expense Tracker
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+            Join ExpenseTracker
           </h1>
-          <p className="text-slate-600 text-sm">
-            Create your account to start managing your finances
+          <p className="text-slate-500 text-sm md:text-base">
+            Start your journey towards financial freedom today.
           </p>
         </div>
 
@@ -41,12 +34,12 @@ const Signup = () => {
         }} />
 
         {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-600">
+        <div className="mt-8 text-center pt-6 border-t border-slate-100 dark:border-slate-800">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+              className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
             >
               Sign in
             </Link>
