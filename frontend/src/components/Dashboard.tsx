@@ -28,21 +28,33 @@ const Dashboard = () => {
         const res = await fetch(API_ENDPOINTS.expenses, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
-        setTransactions(data);
-
-        // Calculate Stats
-        const income = data
-          .filter((t: any) => t.type === 'income')
-          .reduce((acc: number, curr: any) => acc + curr.amount, 0);
         
-        const expenses = data
-          .filter((t: any) => t.type === 'expense')
-          .reduce((acc: number, curr: any) => acc + curr.amount, 0);
+        // Safety: Handle non-200 responses
+        if (!res.ok) throw new Error("Failed to fetch data");
 
-        setStats({ income, expenses, balance: income - expenses });
+        const data = await res.json();
+        
+        // FIX: Ensure data is actually an array before filtering
+        if (Array.isArray(data)) {
+          setTransactions(data);
+
+          // Calculate Stats
+          const income = data
+            .filter((t: any) => t.type === 'income')
+            .reduce((acc: number, curr: any) => acc + curr.amount, 0);
+          
+          const expenses = data
+            .filter((t: any) => t.type === 'expense')
+            .reduce((acc: number, curr: any) => acc + curr.amount, 0);
+
+          setStats({ income, expenses, balance: income - expenses });
+        } else {
+          console.error("API returned non-array data:", data);
+          setTransactions([]);
+        }
       } catch (error) {
         console.error("Failed to load stats", error);
+        setTransactions([]); // Fallback to empty state
       } finally {
         setLoading(false);
       }
@@ -100,19 +112,13 @@ const Dashboard = () => {
         </section>
 
         {/* --- Main Dashboard Grid --- */}
-        {/* Uses lg:grid-cols-12 to split layout 7/5 on laptops, stacked on tablets/mobile */}
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Form & List */}
           <div className="lg:col-span-7 flex flex-col gap-8 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            
-            {/* Input Area */}
-            {/* Added shadow/border wrapper directly here to unify look if needed, or rely on internal component */}
             <div className="w-full">
               <ExpenseForm onExpenseAdded={updateAll} />
             </div>
-
-            {/* Transactions List */}
             <div className="glass-card p-4 sm:p-6 md:p-8 min-h-[400px]">
               <ExpenseList refreshSignal={refreshSignal} />
             </div>
@@ -120,13 +126,9 @@ const Dashboard = () => {
 
           {/* Right Column: Pending & Charts */}
           <div className="lg:col-span-5 flex flex-col gap-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            
-            {/* Pending Items (Automatically hides if empty inside component) */}
             <div className="w-full">
               <PendingTransactionSection onUpdate={updateAll} />
             </div>
-
-            {/* Charts */}
             <div className="glass-card p-4 sm:p-6 md:p-8 h-full min-h-[450px]">
               <Charts refreshSignal={refreshSignal} />
             </div>
