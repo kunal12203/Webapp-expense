@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { API_ENDPOINTS } from "../config/api";
 import * as Icons from "lucide-react";
-import { Trash2, Loader2, CalendarClock, ArrowUpRight, ArrowDownRight, Search } from "lucide-react";
+import { Trash2, Loader2, CalendarClock, ArrowUpRight, ArrowDownRight, Search, Edit2 } from "lucide-react";
 
 // Helper function
 function getLucideIcon(iconName: string) {
@@ -97,13 +97,25 @@ const ExpenseList = ({ refreshSignal }: any) => {
                     </div>
                   </div>
                   
-                  <button 
-                    onClick={() => deleteExpense(e.id)}
-                    className="absolute right-4 opacity-0 group-hover:opacity-100 p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all shadow-sm"
-                    title="Delete Transaction"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => {
+                        // TODO: Open edit modal with expense data
+                        alert('Edit functionality coming soon');
+                      }}
+                      className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all shadow-sm"
+                      title="Edit Transaction"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => deleteExpense(e.id)}
+                      className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all shadow-sm"
+                      title="Delete Transaction"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -396,7 +396,7 @@ def create_default_categories(db: Session, user_id: int):
         {"name": "Shopping", "color": "#95E1D3", "icon": "shopping-bag"},
         {"name": "Bills", "color": "#FFE66D", "icon": "file-text"},
         {"name": "Entertainment", "color": "#A8E6CF", "icon": "film"},
-        {"name": "Income", "color": "#4CAF50", "icon": "dollar-sign"},
+        {"name": "Income", "color": "#4CAF50", "icon": "indian-rupee"},
         {"name": "Education", "color": "#2196F3", "icon": "book"},
         {"name": "Health", "color": "#E91E63", "icon": "heart"},
     ]
@@ -840,7 +840,7 @@ async def get_personalized_shortcut_url(
     
     # Generate the personalized FRONTEND URL with embedded token
     # User pastes this in iOS Shortcut, it goes directly to frontend with auth
-    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={shortcut_token}&sms"
+    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={shortcut_token}&sms={{SMS_TEXT}}"
     
     return {
         "success": True,
@@ -1067,12 +1067,14 @@ def get_category_stats(
     for category in categories:
         expense_count = db.query(Expense).filter(
             Expense.user_id == current_user.id,
-            Expense.category == category.name
+            Expense.category == category.name,
+            Expense.type == "expense"  # Only count expenses, not income
         ).count()
         
         total_amount = db.query(Expense).filter(
             Expense.user_id == current_user.id,
-            Expense.category == category.name
+            Expense.category == category.name,
+            Expense.type == "expense"  # Only sum expenses, not income
         ).with_entities(
             db.func.sum(Expense.amount)
         ).scalar() or 0
@@ -1085,6 +1087,9 @@ def get_category_stats(
             "total_amount": float(total_amount),
             "can_delete": expense_count == 0
         })
+    
+    # Filter out categories with 0 expenses for the chart
+    stats = [s for s in stats if s["total_amount"] > 0]
     
     return stats
 
