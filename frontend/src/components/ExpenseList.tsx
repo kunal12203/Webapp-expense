@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import * as Icons from "lucide-react";
-import { Trash2, Loader2, CalendarClock, ArrowUpRight, ArrowDownRight, Search, Edit2 } from "lucide-react";
+import { Trash2, Loader2, CalendarClock, ArrowUpRight, ArrowDownRight, Search, Edit2, ArrowRight } from "lucide-react";
 
 // Helper function
 function getLucideIcon(iconName: string) {
@@ -9,7 +10,8 @@ function getLucideIcon(iconName: string) {
   return (Icons as any)[pascal] || Icons.Tag;
 }
 
-const ExpenseList = ({ refreshSignal }: any) => {
+const ExpenseList = ({ refreshSignal, showAll = false }: any) => {
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,6 +48,9 @@ const ExpenseList = ({ refreshSignal }: any) => {
     e.category?.toLowerCase().includes(filter.toLowerCase())
   );
 
+  // Limit to 5 on dashboard, show all on dedicated page
+  const displayExpenses = showAll ? filteredExpenses : filteredExpenses.slice(0, 5);
+
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin w-8 h-8 text-indigo-600" /></div>;
 
   return (
@@ -64,7 +69,7 @@ const ExpenseList = ({ refreshSignal }: any) => {
       </div>
 
       <div className="space-y-3">
-        {filteredExpenses.map((e: any) => {
+        {displayExpenses.map((e: any) => {
           const cat: any = categories.find((c: any) => c.name === e.category);
           const Icon = cat ? getLucideIcon(cat.icon) : Icons.Tag;
           const isIncome = e.type === 'income';
@@ -128,6 +133,16 @@ const ExpenseList = ({ refreshSignal }: any) => {
             </div>
             <p className="text-slate-500 dark:text-slate-400 font-medium">No transactions found.</p>
           </div>
+        )}
+        
+        {!showAll && filteredExpenses.length > 5 && (
+          <button
+            onClick={() => navigate("/transactions")}
+            className="w-full mt-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 transition-all font-semibold flex items-center justify-center gap-2"
+          >
+            See All Transactions
+            <ArrowRight className="w-4 h-4" />
+          </button>
         )}
       </div>
     </div>

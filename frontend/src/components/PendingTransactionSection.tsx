@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { BellRing, Check, X, Loader2, Edit2 } from "lucide-react";
+import { BellRing, Check, X, Loader2, Edit2, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getPendingTransactions, confirmPendingTransaction, cancelPendingTransaction } from "../config/api";
 
-const PendingTransactionSection = ({ onUpdate }: any) => {
+const PendingTransactionSection = ({ onUpdate, showAll = false }: any) => {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +42,9 @@ const PendingTransactionSection = ({ onUpdate }: any) => {
 
   if (!loading && transactions.length === 0) return null;
 
+  // Limit to 3 on dashboard
+  const displayTransactions = showAll ? transactions : transactions.slice(0, 3);
+
   return (
     <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-3xl p-6 relative overflow-hidden">
       <div className="flex items-center gap-3 mb-4 relative z-10">
@@ -55,7 +58,7 @@ const PendingTransactionSection = ({ onUpdate }: any) => {
       </div>
 
       <div className="space-y-3 relative z-10">
-        {transactions.map((tx: any) => (
+        {displayTransactions.map((tx: any) => (
           <div key={tx.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-800/30">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -97,6 +100,16 @@ const PendingTransactionSection = ({ onUpdate }: any) => {
             </div>
           </div>
         ))}
+        
+        {!showAll && transactions.length > 3 && (
+          <button
+            onClick={() => navigate("/pending")}
+            className="w-full mt-4 py-3 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 transition-all font-semibold flex items-center justify-center gap-2 border border-amber-200 dark:border-amber-800"
+          >
+            See All Pending
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
