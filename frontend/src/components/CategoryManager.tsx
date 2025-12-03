@@ -11,8 +11,79 @@ function getLucideIcon(iconName: string) {
 const CategoryManager = ({ isOpen, onClose, onUpdate }: any) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [newCategory, setNewCategory] = useState({ name: "", color: "#667EEA", icon: "Tag" });
+  const [newCategory, setNewCategory] = useState({ name: "", color: "#667EEA", icon: "tag" });
   const [saving, setSaving] = useState(false);
+  const [suggestedIcon, setSuggestedIcon] = useState("");
+
+  // Icon suggestions based on category name
+  const suggestIcon = (name: string) => {
+    const lowerName = name.toLowerCase();
+    const iconMap: { [key: string]: string } = {
+      // Food & Dining
+      'food': 'utensils', 'restaurant': 'utensils', 'dining': 'utensils', 'meal': 'utensils',
+      'grocery': 'shopping-cart', 'groceries': 'shopping-cart', 'supermarket': 'shopping-cart',
+      'coffee': 'coffee', 'cafe': 'coffee', 'tea': 'coffee',
+      'pizza': 'pizza', 'burger': 'burger',
+      
+      // Transport
+      'transport': 'car', 'travel': 'plane', 'flight': 'plane', 'taxi': 'car',
+      'uber': 'car', 'bus': 'bus', 'train': 'train', 'metro': 'train',
+      'fuel': 'fuel', 'petrol': 'fuel', 'gas': 'fuel',
+      
+      // Shopping
+      'shopping': 'shopping-bag', 'shop': 'shopping-bag', 'clothes': 'shirt',
+      'fashion': 'shirt', 'shoes': 'footprints',
+      
+      // Bills & Utilities
+      'bill': 'file-text', 'bills': 'file-text', 'rent': 'home',
+      'electricity': 'zap', 'water': 'droplet', 'internet': 'wifi',
+      'phone': 'smartphone', 'mobile': 'smartphone',
+      
+      // Entertainment
+      'entertainment': 'film', 'movie': 'film', 'cinema': 'film',
+      'music': 'music', 'spotify': 'music', 'netflix': 'tv',
+      'game': 'gamepad', 'gaming': 'gamepad',
+      
+      // Health & Fitness
+      'health': 'heart', 'medical': 'heart', 'doctor': 'stethoscope',
+      'medicine': 'pill', 'pharmacy': 'pill', 'hospital': 'hospital',
+      'gym': 'dumbbell', 'fitness': 'dumbbell', 'sport': 'dumbbell',
+      
+      // Education
+      'education': 'book', 'school': 'book', 'course': 'graduation-cap',
+      'study': 'book', 'books': 'book',
+      
+      // Finance
+      'salary': 'wallet', 'income': 'indian-rupee', 'investment': 'trending-up',
+      'savings': 'piggy-bank', 'bank': 'landmark',
+      
+      // Others
+      'gift': 'gift', 'donation': 'hand-heart', 'charity': 'hand-heart',
+      'insurance': 'shield', 'loan': 'banknote',
+      'beauty': 'sparkles', 'salon': 'scissors',
+      'pet': 'paw-print', 'subscription': 'repeat',
+    };
+
+    // Find matching icon
+    for (const [keyword, icon] of Object.entries(iconMap)) {
+      if (lowerName.includes(keyword)) {
+        return icon;
+      }
+    }
+    
+    return 'tag'; // Default
+  };
+
+  const handleNameChange = (name: string) => {
+    setNewCategory({ ...newCategory, name });
+    if (name.trim().length > 2) {
+      const suggested = suggestIcon(name);
+      setSuggestedIcon(suggested);
+      setNewCategory({ ...newCategory, name, icon: suggested });
+    } else {
+      setSuggestedIcon("");
+    }
+  };
 
   const loadCategories = async () => {
     setLoading(true);
@@ -36,7 +107,8 @@ const CategoryManager = ({ isOpen, onClose, onUpdate }: any) => {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(newCategory),
       });
-      setNewCategory({ name: "", color: "#667EEA", icon: "Tag" });
+      setNewCategory({ name: "", color: "#667EEA", icon: "tag" });
+      setSuggestedIcon("");
       loadCategories();
       if (onUpdate) onUpdate();
     } catch (e) { console.error(e); }
@@ -112,7 +184,7 @@ const CategoryManager = ({ isOpen, onClose, onUpdate }: any) => {
                 className="input-field flex-1" 
                 placeholder="Category Name (e.g. Travel)" 
                 value={newCategory.name} 
-                onChange={e => setNewCategory({...newCategory, name: e.target.value})} 
+                onChange={e => handleNameChange(e.target.value)} 
               />
               <div className="relative group">
                 <div className="w-12 h-full rounded-2xl border-2 border-slate-200 dark:border-slate-700 overflow-hidden cursor-pointer shadow-sm group-hover:scale-105 transition-transform" style={{ backgroundColor: newCategory.color }}>
@@ -126,23 +198,30 @@ const CategoryManager = ({ isOpen, onClose, onUpdate }: any) => {
               </div>
             </div>
             
-            <div className="flex gap-3">
-              <input 
-                className="input-field flex-1" 
-                placeholder="Icon Name (e.g. Plane, Coffee, Car)" 
-                value={newCategory.icon} 
-                onChange={e => setNewCategory({...newCategory, icon: e.target.value})} 
-              />
+            <div className="flex gap-3 items-center">
+              <div className="relative flex-1">
+                <input 
+                  className="input-field w-full" 
+                  placeholder="Icon Name (e.g. Plane, Coffee, Car)" 
+                  value={newCategory.icon} 
+                  onChange={e => setNewCategory({...newCategory, icon: e.target.value})} 
+                />
+                {suggestedIcon && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <span className="text-xs text-emerald-600 font-semibold">✨ Auto-suggested</span>
+                  </div>
+                )}
+              </div>
               <button 
                 onClick={handleAdd} 
                 disabled={saving} 
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-2xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <Plus className="w-5 h-5" />}
               </button>
             </div>
             <p className="text-xs text-slate-400 text-center pt-2">
-              Tip: Use <a href="https://lucide.dev/icons" target="_blank" className="text-indigo-500 underline" rel="noreferrer">Lucide icon names</a>.
+              💡 Icons auto-suggest based on category name | View all at <a href="https://lucide.dev/icons" target="_blank" className="text-indigo-500 underline" rel="noreferrer">Lucide</a>
             </p>
           </div>
         </div>
