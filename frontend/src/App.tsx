@@ -10,8 +10,9 @@ import ShortcutSetup from "./components/onboarding/ShortcutSetup";
 import ProfilePage from "./components/profile/ProfilePage";
 import PendingTransactionModal from "./components/PendingTransactionModal";
 import SMSProcessor from "./components/SMSProcessor";
-import AllTransactions from "./components/AllTransaction";
-import AllPendingTransactions from "./components/AllPendingTransaction";
+import AllTransactions from "./components/AllTransactions";
+import AllPendingTransactions from "./components/AllPendingTransactions";
+import AutomationGuide from "./components/AutomationGuide";
 import Layout from "./components/Layout";
 import { API_ENDPOINTS } from "./config/api";
 import { Loader2 } from "lucide-react";
@@ -75,6 +76,7 @@ const App = () => {
           } />
           <Route path="/transactions" element={<AllTransactions />} />
           <Route path="/pending" element={<AllPendingTransactions />} />
+          <Route path="/automation-guide" element={<AutomationGuide />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/analytics" element={<Dashboard />} /> {/* Reuse dashboard for now */}
         </Route>

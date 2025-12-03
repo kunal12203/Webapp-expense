@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, User, LogOut, Wallet, 
-  PieChart, CreditCard, Settings, Menu, X, Receipt, Clock
+  PieChart, CreditCard, Settings, Menu, X, Receipt, Clock, Zap
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -85,6 +85,7 @@ const Layout = () => {
             <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
             <NavItem to="/transactions" icon={Receipt} label="Transactions" />
             <NavItem to="/pending" icon={Clock} label="Pending" />
+            <NavItem to="/automation-guide" icon={Zap} label="Automation" />
             <NavItem to="/analytics" icon={PieChart} label="Analytics" />
             <NavItem to="/profile" icon={User} label="Profile" />
           </nav>
