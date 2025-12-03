@@ -16,7 +16,7 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
   const [error, setError] = useState<string>('');
   const token = localStorage.getItem('token');
   
-  const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/4b61ce735779484b96688db44c7df2c7';
+  const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/7446367c47774973a47a7f812066bbf9';
   const API_BASE = import.meta.env.VITE_API_URL || "https://webapp-expense.onrender.com";
 
   // Fetch personalized shortcut URL on mount
