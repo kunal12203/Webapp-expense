@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, Mail, Lock, Phone, Briefcase, Calendar, DollarSign, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
+import { User, Mail, Lock, Phone, Briefcase, Calendar, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import { API_ENDPOINTS } from "../../config/api";
 
 interface SignupFormProps {
@@ -29,6 +29,16 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If on step 1, just validate and move to step 2
+    if (step === 1) {
+      if (validateStep1()) {
+        setStep(2);
+      }
+      return;
+    }
+    
+    // Step 2 - actually submit the form
     setLoading(true);
     setError("");
 
@@ -98,7 +108,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
           <input className="input-field pl-12" placeholder="Occupation (Optional)" value={formData.occupation} onChange={(e) => setFormData({ ...formData, occupation: e.target.value })} />
         </div>
         <div className="relative group">
-          <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">₹</span>
           <input type="number" className="input-field pl-12" placeholder="Monthly Budget (Optional)" value={formData.monthly_budget} onChange={(e) => setFormData({ ...formData, monthly_budget: e.target.value })} />
         </div>
         
