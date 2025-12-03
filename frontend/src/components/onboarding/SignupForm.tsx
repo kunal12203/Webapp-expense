@@ -89,7 +89,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
           <input type="password" className="input-field pl-12" placeholder="Password (6+ chars)" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
         </div>
-        <button type="button" onClick={() => { setError(""); validateStep1() && setStep(2); }} className="btn-gradient w-full mt-4">
+        <button type="submit" className="btn-gradient w-full mt-4">
           Next Step <ChevronRight className="w-5 h-5" />
         </button>
       </div>
