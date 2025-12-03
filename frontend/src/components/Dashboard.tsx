@@ -14,7 +14,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   
   // Stats State
-  const [transactions, setTransactions] = useState([]);
+  // FIX: Added <any[]> to prevent 'never[]' type inference error
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState({ income: 0, expenses: 0, balance: 0 });
 
   const updateAll = () => setRefreshSignal((prev) => prev + 1);
@@ -34,7 +35,7 @@ const Dashboard = () => {
 
         const data = await res.json();
         
-        // FIX: Ensure data is actually an array before filtering
+        // Ensure data is actually an array before setting state
         if (Array.isArray(data)) {
           setTransactions(data);
 
