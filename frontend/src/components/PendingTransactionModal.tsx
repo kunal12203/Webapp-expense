@@ -41,14 +41,20 @@ const PendingTransactionModal = () => {
           date: txRes.date || "",
           type: txRes.type || "expense"
         });
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
+        // If 401 or authentication error, redirect to login
+        if (e.message?.includes("401") || e.message?.includes("Unauthorized")) {
+          localStorage.removeItem("token");
+          sessionStorage.removeItem("temp_auth_token");
+          navigate("/login");
+        }
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [token]);
+  }, [token, navigate]);
 
   const handleEdit = () => {
     setIsEditing(true);

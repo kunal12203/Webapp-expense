@@ -1599,9 +1599,7 @@ def create_categories_batch(
             user_id=current_user.id,
             name=example.name,
             color=example.color,
-            icon=example.icon,
-            description=example.description,
-            is_custom=False  # Marks as selected from examples
+            icon=example.icon
         )
         db.add(new_category)
         created_count += 1

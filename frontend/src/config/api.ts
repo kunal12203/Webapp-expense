@@ -45,6 +45,7 @@ export async function authGet(url: string) {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (res.status === 401) throw new Error("401 Unauthorized");
   if (!res.ok) throw new Error((await res.json()).detail || "Request failed");
   return res.json();
 }
@@ -59,6 +60,7 @@ export async function authPost(url: string, body: any) {
     },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) throw new Error("401 Unauthorized");
   if (!res.ok) throw new Error((await res.json()).detail || "Request failed");
   return res.json();
 }
@@ -73,6 +75,7 @@ export async function authPut(url: string, body: any) {
     },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) throw new Error("401 Unauthorized");
   if (!res.ok) throw new Error((await res.json()).detail || "Request failed");
   return res.json();
 }
@@ -83,6 +86,7 @@ export async function authDelete(url: string) {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (res.status === 401) throw new Error("401 Unauthorized");
   if (!res.ok) throw new Error((await res.json()).detail || "Request failed");
   return res.json();
 }
