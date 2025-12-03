@@ -78,31 +78,32 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
       <div className={`absolute top-0 left-0 w-full h-1 sm:h-1.5 ${isExpense ? 'bg-gradient-to-r from-rose-500 to-orange-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`} />
 
       <form onSubmit={handleSubmit}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-3 sm:gap-4">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">New Transaction</h2>
-            <p className="text-xs sm:text-sm text-slate-500 truncate">Record your daily spending or income.</p>
-          </div>
-          
-          {/* Type Toggle */}
-          <div className="bg-slate-100 dark:bg-slate-900 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl flex relative shrink-0">
+        {/* Title Section */}
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-1">New Transaction</h2>
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">Record your daily spending or income.</p>
+        </div>
+
+        {/* Type Toggle - Centered */}
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <div className="bg-slate-100 dark:bg-slate-900 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl flex relative">
             <button
               type="button"
               onClick={() => setExpense({ ...expense, type: "expense" })}
-              className={`relative z-10 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-1.5 sm:gap-2 ${
-                isExpense ? "bg-white dark:bg-slate-800 text-rose-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              className={`relative z-10 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all duration-300 flex items-center gap-2 ${
+                isExpense ? "bg-white dark:bg-slate-800 text-rose-600 shadow-md" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              <ArrowDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Expense</span><span className="xs:hidden">-</span>
+              <ArrowDown className="w-4 h-4 sm:w-5 sm:h-5" /> Expense
             </button>
             <button
               type="button"
               onClick={() => setExpense({ ...expense, type: "income" })}
-              className={`relative z-10 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-1.5 sm:gap-2 ${
-                !isExpense ? "bg-white dark:bg-slate-800 text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              className={`relative z-10 px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold transition-all duration-300 flex items-center gap-2 ${
+                !isExpense ? "bg-white dark:bg-slate-800 text-emerald-600 shadow-md" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Income</span><span className="xs:hidden">+</span>
+              <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5" /> Income
             </button>
           </div>
         </div>
