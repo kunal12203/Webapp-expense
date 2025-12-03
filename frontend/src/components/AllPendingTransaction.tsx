@@ -1,9 +1,9 @@
 import React from "react";
-import ExpenseList from "./ExpenseList";
+import PendingTransactionSection from "./PendingTransactionSection";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const AllTransactions = () => {
+const AllPendingTransactions = () => {
   const navigate = useNavigate();
 
   return (
@@ -17,17 +17,15 @@ const AllTransactions = () => {
         </button>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-            All Transactions
+            Pending Transactions
           </h1>
-          <p className="text-sm text-slate-500">View and manage all your transactions</p>
+          <p className="text-sm text-slate-500">Review and confirm pending transactions</p>
         </div>
       </div>
 
-      <div className="glass-card p-4 sm:p-6 md:p-8">
-        <ExpenseList refreshSignal={0} showAll={true} />
-      </div>
+      <PendingTransactionSection onUpdate={() => {}} showAll={true} />
     </div>
   );
 };
 
-export default AllTransactions;
+export default AllPendingTransactions;
