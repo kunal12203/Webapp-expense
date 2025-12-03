@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import CategorySelector from "./components/onboarding/CategorySelector";
+import ShortcutSetup from "./components/onboarding/ShortcutSetup";
 import ProfilePage from "./components/profile/ProfilePage";
 import PendingTransactionModal from "./components/PendingTransactionModal";
 import SMSProcessor from "./components/SMSProcessor";
@@ -77,6 +78,9 @@ const App = () => {
         {/* Onboarding Standalone */}
         <Route path="/onboarding/categories" element={
           <Protected><CategorySelector /></Protected>
+        } />
+        <Route path="/onboarding/shortcut" element={
+          <Protected><ShortcutSetup /></Protected>
         } />
       </Routes>
     </BrowserRouter>
