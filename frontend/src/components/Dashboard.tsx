@@ -107,7 +107,7 @@ const Dashboard = () => {
           </div>
 
           {/* Transactions List */}
-          <div className="glass-card p-4 sm:p-6 md:p-8 min-h-[400px] sm:min-h-[500px]">
+          <div className="glass-card p-4 sm:p-6 md:p-8">
             <ExpenseList refreshSignal={refreshSignal} />
           </div>
         </div>
@@ -119,8 +119,10 @@ const Dashboard = () => {
           <PendingTransactionSection onUpdate={updateAll} />
 
           {/* Charts */}
-          <div className="glass-card p-4 sm:p-6 md:p-8 h-[350px] sm:h-[400px] md:h-[500px]">
-            <Charts refreshSignal={refreshSignal} />
+          <div className="glass-card p-4 sm:p-6 md:p-8">
+            <div className="h-[350px] sm:h-[400px] lg:h-[500px]">
+              <Charts refreshSignal={refreshSignal} />
+            </div>
           </div>
         </div>
       </div>

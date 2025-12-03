@@ -1036,6 +1036,13 @@ def delete_category(
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     
+    # Prevent deletion of Income category
+    if category.name == "Income":
+        raise HTTPException(
+            status_code=400,
+            detail="Income category cannot be deleted as it's essential for tracking income"
+        )
+    
     # Check if category is used
     expense_count = db.query(Expense).filter(
         Expense.user_id == current_user.id,
@@ -1085,7 +1092,7 @@ def get_category_stats(
             "icon": category.icon,
             "expense_count": expense_count,
             "total_amount": float(total_amount),
-            "can_delete": expense_count == 0
+            "can_delete": expense_count == 0 and category.name != "Income"  # Income category can't be deleted
         })
     
     # Filter out categories with 0 expenses for the chart
