@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import { Pie } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
@@ -7,7 +8,8 @@ import { PieChart, Info } from "lucide-react";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Charts = ({ refreshSignal }: { refreshSignal?: number }) => {
-  const [stats, setStats] = useState([]);
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
 
   const loadStats = async () => {
@@ -16,12 +18,29 @@ const Charts = ({ refreshSignal }: { refreshSignal?: number }) => {
       const res = await fetch(API_ENDPOINTS.categoryStats, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        navigate("/login");
+        return;
+      }
+      
+      if (!res.ok) throw new Error("Failed to load stats");
+      
       const data = await res.json();
-      setStats(data);
-      const sum = data.reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
-      setTotal(sum);
+      
+      if (Array.isArray(data)) {
+        setStats(data);
+        const sum = data.reduce((acc: number, curr: any) => acc + curr.total_amount, 0);
+        setTotal(sum);
+      } else {
+        setStats([]);
+        setTotal(0);
+      }
     } catch (e) {
       console.error(e);
+      setStats([]);
+      setTotal(0);
     }
   };
 

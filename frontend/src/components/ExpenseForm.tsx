@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { API_ENDPOINTS } from "../config/api";
 import { Loader2, Plus, Calendar, Type, AlignLeft, ArrowDown, ArrowUp } from "lucide-react";
 
 const ExpenseForm = ({ onExpenseAdded }: any) => {
-  const [categories, setCategories] = useState([]);
+  const navigate = useNavigate();
+  const [categories, setCategories] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   
   const [expense, setExpense] = useState({
@@ -21,11 +23,26 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
         const res = await fetch(API_ENDPOINTS.categories, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setCategories(await res.json());
-      } catch (e) { console.error(e); }
+        
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/login");
+          return;
+        }
+        
+        if (!res.ok) throw new Error("Failed to load categories");
+        
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      } catch (e) { 
+        console.error(e);
+        setCategories([]);
+      }
     };
     loadCategories();
-  }, []);
+  }, [navigate]);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
