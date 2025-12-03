@@ -109,9 +109,9 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
           <div className="relative">
             <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:mb-1.5 block ml-1">Category</label>
             <div className="relative">
-              <Type className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+              <Type className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 pointer-events-none z-10" />
               <select
-                className="input-field pl-10 sm:pl-12 appearance-none cursor-pointer text-sm sm:text-base"
+                className="input-field pl-10 sm:pl-12 pr-3 appearance-none cursor-pointer text-sm sm:text-base truncate"
                 value={expense.category}
                 onChange={(e) => setExpense({ ...expense, category: e.target.value })}
               >
@@ -126,10 +126,10 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
           <div className="relative">
             <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:mb-1.5 block ml-1">Date</label>
             <div className="relative">
-              <Calendar className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+              <Calendar className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 pointer-events-none z-10" />
               <input
                 type="date"
-                className="input-field pl-10 sm:pl-12 text-sm sm:text-base"
+                className="input-field pl-10 sm:pl-12 pr-3 text-sm sm:text-base"
                 value={expense.date}
                 onChange={(e) => setExpense({ ...expense, date: e.target.value })}
               />
