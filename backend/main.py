@@ -850,7 +850,7 @@ async def regenerate_shortcut_url(
     from urllib.parse import quote
     encoded_token = quote(shortcut_token, safe='')
     
-    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms={{SMS_TEXT}}"
+    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms"
     
     return {
         "success": True,
@@ -891,7 +891,7 @@ async def get_personalized_shortcut_url(
     
     # Generate the personalized FRONTEND URL with embedded token
     # User pastes this in iOS Shortcut, it goes directly to frontend with auth
-    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms={{SMS_TEXT}}"
+    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms"
     
     return {
         "success": True,
