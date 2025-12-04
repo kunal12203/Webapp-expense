@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, date as date_type
 from typing import Optional, List
 from dotenv import load_dotenv
 from secrets import token_urlsafe
+from urllib.parse import quote
 import hashlib
 import os
 import smtplib
@@ -78,9 +79,6 @@ class User(Base):
     occupation = Column(String, nullable=True)
     monthly_budget = Column(Float, nullable=True)
     onboarding_completed = Column(Integer, default=0)  # SQLite uses 0/1 for boolean
-    
-    # Shortcut token versioning - increment to invalidate all old URLs
-    shortcut_token_version = Column(Integer, default=1)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -847,7 +845,6 @@ async def regenerate_shortcut_url(
     shortcut_token = jwt.encode(shortcut_token_data, SECRET_KEY, algorithm=ALGORITHM)
     
     # URL encode the token
-    from urllib.parse import quote
     encoded_token = quote(shortcut_token, safe='')
     
     personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms={{SMS_TEXT}}"
@@ -886,7 +883,6 @@ async def get_personalized_shortcut_url(
     shortcut_token = jwt.encode(shortcut_token_data, SECRET_KEY, algorithm=ALGORITHM)
     
     # URL encode the token to handle special characters (dots in JWT)
-    from urllib.parse import quote
     encoded_token = quote(shortcut_token, safe='')
     
     # Generate the personalized FRONTEND URL with embedded token
