@@ -13,7 +13,10 @@ const SMSProcessor = () => {
       const sms = searchParams.get("sms");
       const urlToken = searchParams.get("token");
 
-      if (!sms) {
+      console.log("Raw SMS param:", sms);
+      console.log("Token:", urlToken);
+
+      if (!sms || sms.trim() === "") {
         setError("No SMS text provided");
         setProcessing(false);
         return;
@@ -26,10 +29,15 @@ const SMSProcessor = () => {
       }
 
       try {
+        // Decode the SMS text properly (searchParams.get already decodes URL encoding)
+        const decodedSMS = sms.trim();
+        
+        console.log("Decoded SMS:", decodedSMS);
+
         // Call backend API to parse SMS using token from URL
         const API_BASE = import.meta.env.VITE_API_URL || "https://webapp-expense.onrender.com";
         const response = await fetch(
-          `${API_BASE}/api/user/sms-parse?sms=${encodeURIComponent(sms)}`,
+          `${API_BASE}/api/user/sms-parse?sms=${encodeURIComponent(decodedSMS)}`,
           {
             headers: {
               Authorization: `Bearer ${urlToken}`,
@@ -54,7 +62,7 @@ const SMSProcessor = () => {
         // Redirect to confirmation page
         navigate(`/add-expense/${pendingToken}`);
       } catch (err: any) {
-        console.error(err);
+        console.error("Error processing SMS:", err);
         setError(err.message || "Failed to process SMS");
         setProcessing(false);
       }
@@ -71,7 +79,16 @@ const SMSProcessor = () => {
           <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
             Processing Failed
           </h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6">{error}</p>
+          <p className="text-slate-600 dark:text-slate-400 mb-4">{error}</p>
+          <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg mb-6 text-xs text-left">
+            <p className="text-slate-500 dark:text-slate-400 mb-1">Debug Info:</p>
+            <p className="text-slate-600 dark:text-slate-300 break-all">
+              SMS: {searchParams.get("sms")?.substring(0, 50)}...
+            </p>
+            <p className="text-slate-600 dark:text-slate-300 mt-1">
+              Token: {searchParams.get("token") ? "✓ Present" : "✗ Missing"}
+            </p>
+          </div>
           <button
             onClick={() => navigate("/")}
             className="btn-gradient px-6 py-3"
