@@ -79,6 +79,9 @@ class User(Base):
     monthly_budget = Column(Float, nullable=True)
     onboarding_completed = Column(Integer, default=0)  # SQLite uses 0/1 for boolean
     
+    # Shortcut token versioning - increment to invalidate all old URLs
+    shortcut_token_version = Column(Integer, default=1)
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -377,6 +380,8 @@ def get_current_user(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        token_version: int = payload.get("version")  # For shortcut tokens
+        
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
     except JWTError:
@@ -385,6 +390,15 @@ def get_current_user(
     user = db.query(User).filter(User.username == username).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    
+    # Validate token version if present (for shortcut URLs)
+    if token_version is not None:
+        if token_version != user.shortcut_token_version:
+            raise HTTPException(
+                status_code=401, 
+                detail="Shortcut URL has been regenerated. Please get a new URL from Profile page."
+            )
+    
     return user
 
 # ✅ NEW: Create Default Categories Helper
@@ -816,6 +830,35 @@ async def user_sms_parse(
 # GENERATE PERSONALIZED SHORTCUT URL
 # ==========================================
 
+@app.post("/api/user/regenerate-shortcut-url")
+async def regenerate_shortcut_url(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a fresh shortcut URL
+    Note: This doesn't actually invalidate old URLs (they expire in 30 days)
+    Just generates a new token with same validity
+    """
+    # Generate new token
+    shortcut_token_data = {"sub": current_user.username}
+    shortcut_expire = datetime.utcnow() + timedelta(days=30)
+    shortcut_token_data.update({"exp": shortcut_expire})
+    shortcut_token = jwt.encode(shortcut_token_data, SECRET_KEY, algorithm=ALGORITHM)
+    
+    # URL encode the token
+    from urllib.parse import quote
+    encoded_token = quote(shortcut_token, safe='')
+    
+    personalized_url = f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms={{SMS_TEXT}}"
+    
+    return {
+        "success": True,
+        "shortcut_url": personalized_url,
+        "message": "New shortcut URL generated. Update your iOS Shortcut with this URL.",
+        "expires_in_days": 30
+    }
+
 @app.get("/api/user/shortcut-url")
 async def get_personalized_shortcut_url(
     current_user: User = Depends(get_current_user),
@@ -833,7 +876,11 @@ async def get_personalized_shortcut_url(
     Usage: User copies this URL and pastes it in their iOS Shortcut
     """
     # Create a long-lived token (30 days) specifically for shortcuts
-    shortcut_token_data = {"sub": current_user.username}
+    # Include token version to allow invalidation
+    shortcut_token_data = {
+        "sub": current_user.username,
+        "version": current_user.shortcut_token_version
+    }
     shortcut_expire = datetime.utcnow() + timedelta(days=30)
     shortcut_token_data.update({"exp": shortcut_expire})
     shortcut_token = jwt.encode(shortcut_token_data, SECRET_KEY, algorithm=ALGORITHM)
@@ -849,6 +896,7 @@ async def get_personalized_shortcut_url(
     return {
         "success": True,
         "shortcut_url": personalized_url,
+        "token_version": current_user.shortcut_token_version,
         "instructions": "Paste this URL in your iOS Shortcut. Replace {SMS_TEXT} with the SMS text variable.",
         "example": f"{FRONTEND_URL}/add-expense-from-sms?token={encoded_token}&sms=Your%20A/c%20debited%20Rs.500%20at%20Starbucks",
         "expires_in_days": 30,
