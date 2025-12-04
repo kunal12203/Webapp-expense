@@ -37,7 +37,7 @@ const ProfilePage = () => {
       </div>
 
       {/* iOS Shortcut Integration Card */}
-      <IOSShortcutButton />
+    
 
       <div className="glass-card p-8 md:p-10 relative overflow-hidden">
         {/* Background Decor */}

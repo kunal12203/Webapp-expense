@@ -30,7 +30,8 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
     setError('');
     
     const url = `${API_BASE}/api/user/shortcut-url`;
-    
+    console.log('🔍 Fetching personalized URL from:', url);
+    console.log('🔑 Token exists:', !!token);
     
     try {
       const response = await authGet(url);
@@ -91,8 +92,8 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
   const copyPersonalizedUrl = () => {
     if (personalizedUrl) {
       // Replace placeholder with actual SMS variable syntax for shortcuts
-      const shortcutReadyUrl = personalizedUrl.replace('{SMS_TEXT}', '[SMS Text]');
-      navigator.clipboard.writeText(personalizedUrl);
+      const shortcutReadyUrl = personalizedUrl.replace('{SMS_TEXT}', 'SMS Text');
+      navigator.clipboard.writeText(shortcutReadyUrl);
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);
     }
@@ -187,8 +188,14 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                 <>
                   <div className="mb-4 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 break-all">
                     <code className="text-xs text-slate-600 dark:text-slate-300 font-mono">
-                      {personalizedUrl || 'No URL generated'}
+                      {personalizedUrl ? personalizedUrl.replace('{SMS_TEXT}', 'SMS Text') : 'No URL generated'}
                     </code>
+                  </div>
+
+                  <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      💡 <strong>Note:</strong> In your iOS Shortcut, you'll replace "SMS Text" with the actual Shortcut variable
+                    </p>
                   </div>
 
                   <button
