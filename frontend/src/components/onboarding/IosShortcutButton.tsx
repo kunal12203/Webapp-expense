@@ -13,38 +13,73 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
   const [showInstructions, setShowInstructions] = useState(false);
   const [personalizedUrl, setPersonalizedUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string>('');
   const token = localStorage.getItem('token');
   
-  const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/cd4963458b2a411b8373e3884170bf9a';
+  const SHORTCUT_LINK = 'https://www.icloud.com/shortcuts/4b61ce735779484b96688db44c7df2c7';
   const API_BASE = import.meta.env.VITE_API_URL || "https://webapp-expense.onrender.com";
 
   // Fetch personalized shortcut URL on mount
   useEffect(() => {
-    const fetchPersonalizedUrl = async () => {
-      setLoading(true);
-      setError('');
-      
-      const url = `${API_BASE}/api/user/shortcut-url`;
-    
-      
-      try {
-        const response = await authGet(url);
-        setPersonalizedUrl(response.shortcut_url);
-      } catch (error: any) {
-        console.error('❌ Failed to fetch personalized URL:', error);
-        console.error('❌ Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-        setError(error.message || 'Failed to load URL. Check console for details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchPersonalizedUrl();
   }, []);
+
+  const fetchPersonalizedUrl = async () => {
+    setLoading(true);
+    setError('');
+    
+    const url = `${API_BASE}/api/user/shortcut-url`;
+    console.log('🔍 Fetching personalized URL from:', url);
+    console.log('🔑 Token exists:', !!token);
+    
+    try {
+      const response = await authGet(url);
+      console.log('✅ Response received:', response);
+      setPersonalizedUrl(response.shortcut_url);
+    } catch (error: any) {
+      console.error('❌ Failed to fetch personalized URL:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
+      setError(error.message || 'Failed to load URL. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const regenerateUrl = async () => {
+    if (!confirm('This will invalidate your old shortcut URL. You will need to update your iOS Shortcut. Continue?')) {
+      return;
+    }
+
+    setRegenerating(true);
+    setError('');
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/user/regenerate-shortcut-url`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate URL');
+      }
+
+      const data = await response.json();
+      setPersonalizedUrl(data.shortcut_url);
+      alert('✅ New URL generated! Old shortcut URLs are now invalid.');
+    } catch (error: any) {
+      setError(error.message || 'Failed to regenerate URL');
+      alert('❌ Failed to regenerate URL. Please try again.');
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const copyToken = () => {
     if (token) {
@@ -174,6 +209,51 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
                       </>
                     )}
                   </button>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={fetchPersonalizedUrl}
+                      disabled={loading}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <LinkIcon className="w-4 h-4" />
+                          <span>🔄 Get Updated URL</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={regenerateUrl}
+                      disabled={regenerating}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {regenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Regenerating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <LinkIcon className="w-4 h-4" />
+                          <span>⚠️ Force New URL</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      <strong>💡 Updated URL?</strong> Click "Get Updated URL" to fetch the new encoded version. 
+                      Use "Force New URL" only if you suspect your URL was compromised.
+                    </p>
+                  </div>
                 </>
               )}
             </div>
