@@ -30,8 +30,7 @@ const IOSShortcutButton: React.FC<IOSShortcutButtonProps> = ({ onSkip, standalon
     setError('');
     
     const url = `${API_BASE}/api/user/shortcut-url`;
-    console.log('🔍 Fetching personalized URL from:', url);
-    console.log('🔑 Token exists:', !!token);
+    
     
     try {
       const response = await authGet(url);
