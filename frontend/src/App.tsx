@@ -17,6 +17,8 @@ import UpdateShortcutURL from "./components/UpdateShortcutURL";
 import Layout from "./components/Layout";
 import { API_ENDPOINTS } from "./config/api";
 import { Loader2 } from "lucide-react";
+import SplitwiseIntegration from "./components/SplitwiseIntegration";
+
 
 const Protected = ({ children }: any) => {
   const token = localStorage.getItem("token");
@@ -81,6 +83,7 @@ const App = () => {
           <Route path="/update-shortcut" element={<UpdateShortcutURL />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/analytics" element={<Dashboard />} /> {/* Reuse dashboard for now */}
+          <Route path="/splitwise" element={<SplitwiseIntegration />} />
         </Route>
 
         {/* Onboarding Standalone */}

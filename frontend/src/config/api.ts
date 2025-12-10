@@ -36,6 +36,14 @@ export const API_ENDPOINTS = {
   pendingUpdate: (token: string) => `${API_BASE}/api/pending-transaction/${token}`,
   pendingApprove: (token: string) => `${API_BASE}/api/pending-transaction/${token}/approve`,
   pendingDelete: (token: string) => `${API_BASE}/api/pending-transaction/${token}`,
+
+  splitwiseAuthUrl: `${API_BASE}/api/splitwise/auth-url`,
+  splitwiseSync: `${API_BASE}/api/splitwise/sync`,
+  splitwiseSyncToday: `${API_BASE}/api/splitwise/sync-today`,
+  splitwiseSyncAll: `${API_BASE}/api/splitwise/sync-all-user`,
+
+
+
 };
 
 // --- Helper Functions for Authenticated Requests ---

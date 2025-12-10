@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, User, LogOut, Wallet, 
-  PieChart, CreditCard, Settings, Menu, X, Receipt, Clock, Zap
+  PieChart, Settings, Menu, X, Receipt, Clock, Zap
 } from 'lucide-react';
-import { useState } from 'react';
+import { Users } from "lucide-react";
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ const Layout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    if(window.confirm('Are you sure you want to sign out?')) {
+    if (window.confirm('Are you sure you want to sign out?')) {
       localStorage.removeItem('token');
       navigate('/login');
     }
@@ -30,10 +30,13 @@ const Layout = () => {
             : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400'
         }`}
       >
-        <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+        <Icon
+          className={`w-5 h-5 transition-transform duration-300 ${
+            isActive ? 'scale-110' : 'group-hover:scale-110'
+          }`}
+        />
         <span className="font-semibold tracking-wide">{label}</span>
-        
-        {/* Active Indicator Glow */}
+
         {isActive && (
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] animate-shimmer" />
         )}
@@ -55,28 +58,39 @@ const Layout = () => {
           <div className="bg-indigo-600 p-2 rounded-lg">
             <Wallet className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-slate-800 dark:text-white">ExpenseTracker</span>
+          <span className="font-bold text-slate-800 dark:text-white">
+            ExpenseTracker
+          </span>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600 dark:text-slate-300">
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 text-slate-600 dark:text-slate-300"
+        >
           {isMobileMenuOpen ? <X /> : <Menu />}
         </button>
       </div>
 
-      {/* Sidebar Navigation */}
-      <aside className={`
+      {/* Sidebar */}
+      <aside
+        className={`
         fixed inset-y-0 left-0 z-40 w-64 sm:w-72 bg-slate-50/50 dark:bg-[#0b1120]/50 backdrop-blur-xl border-r border-white/20 dark:border-slate-800
         transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      `}
+      >
         <div className="flex flex-col h-full p-4 sm:p-6 safe-area-inset">
-          {/* Logo Area */}
+          {/* Logo */}
           <div className="hidden lg:flex items-center gap-3 mb-8 lg:mb-10 px-2">
             <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2.5 sm:p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
               <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-lg sm:text-xl text-slate-800 dark:text-white leading-none">Expense</h1>
-              <span className="text-[10px] sm:text-xs font-semibold text-indigo-500 tracking-widest uppercase">Tracker</span>
+              <h1 className="font-bold text-lg sm:text-xl text-slate-800 dark:text-white leading-none">
+                Expense
+              </h1>
+              <span className="text-[10px] sm:text-xs font-semibold text-indigo-500 tracking-widest uppercase">
+                Tracker
+              </span>
             </div>
           </div>
 
@@ -87,12 +101,43 @@ const Layout = () => {
             <NavItem to="/pending" icon={Clock} label="Pending" />
             <NavItem to="/automation-guide" icon={Zap} label="Automation" />
             <NavItem to="/analytics" icon={PieChart} label="Analytics" />
+
+            {/* Splitwise with NEW badge */}
+            <NavLink
+              to="/splitwise"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
+                location.pathname === "/splitwise"
+                  ? "bg-indigo-600 text-white shadow-xl shadow-indigo-500/30"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400"
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <Users
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    location.pathname === "/splitwise"
+                      ? "scale-110"
+                      : "group-hover:scale-110"
+                  }`}
+                />
+                <span className="font-semibold tracking-wide">Splitwise</span>
+              </div>
+
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-pink-500 to-violet-600 text-white shadow-sm">
+                NEW
+              </span>
+
+              {location.pathname === "/splitwise" && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] animate-shimmer" />
+              )}
+            </NavLink>
+
             <NavItem to="/profile" icon={User} label="Profile" />
           </nav>
 
-          {/* User Card / Logout */}
+          {/* Logout */}
           <div className="mt-auto pt-4 sm:pt-6 border-t border-slate-200 dark:border-slate-800">
-            <button 
+            <button
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-4 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/10 transition-all group text-sm sm:text-base"
             >
@@ -103,16 +148,19 @@ const Layout = () => {
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main content */}
       <main className="flex-1 w-full lg:max-w-[calc(100vw-18rem)] min-h-screen overflow-y-auto overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8 lg:px-8 pt-20 lg:pt-8 animate-fade-in safe-area-inset">
           <Outlet />
         </div>
       </main>
 
-      {/* Mobile Overlay */}
+      {/* Mobile overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
       )}
     </div>
   );

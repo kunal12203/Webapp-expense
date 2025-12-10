@@ -21,9 +21,16 @@ from email.mime.multipart import MIMEMultipart
 import io
 import csv
 
+from fastapi import APIRouter
+import requests
+from urllib.parse import urlencode
+
 # Import SMS parser router
 from sms_parser_api import router as sms_router
 
+import json
+
+from fastapi.responses import RedirectResponse
 # Load environment variables
 load_dotenv()
 
@@ -34,6 +41,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "3650
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expense_tracker.db")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 API_BASE = os.getenv("API_BASE_URL", "https://webapp-expense.onrender.com")
+
+
+SPLITWISE_CLIENT_ID = os.getenv("SPLITWISE_CLIENT_ID")
+SPLITWISE_CLIENT_SECRET = os.getenv("SPLITWISE_CLIENT_SECRET")
+SPLITWISE_REDIRECT_URI = os.getenv(
+    "SPLITWISE_REDIRECT_URI",
+    "https://splitwise-backend-hn9w.onrender.com/splitwise/callback"
+)
+SPLITWISE_BASE_URL = "https://secure.splitwise.com"
+
 
 # 📧 Email Configuration
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -83,6 +100,13 @@ class User(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
 
+      # 🔹 Splitwise integration
+    splitwise_user_id = Column(Integer, nullable=True)           # your SW user ID
+    splitwise_access_token = Column(String, nullable=True)
+    splitwise_refresh_token = Column(String, nullable=True)
+    splitwise_token_expires_at = Column(DateTime, nullable=True)
+    splitwise_last_sync_at = Column(DateTime, nullable=True)
+
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
     id = Column(Integer, primary_key=True, index=True)
@@ -104,6 +128,10 @@ class PendingTransaction(Base):
     type = Column(String, nullable=True)
     created_at = Column(Date, default=datetime.utcnow)
     status = Column(String, default="pending")
+     # 🔹 Splitwise-specific
+    splitwise_expense_id = Column(Integer, nullable=True, index=True)
+    splitwise_group_name = Column(String, nullable=True)
+    splitwise_raw_json = Column(String, nullable=True)  # optional, for debugging
 
 class Expense(Base):
     __tablename__ = "expenses"
@@ -575,10 +603,261 @@ def parse_excel_file(file_content: bytes) -> List[dict]:
     
     return expenses
 
+def get_splitwise_auth_header(user: User, db: Session) -> dict:
+  if not user.splitwise_access_token:
+      raise HTTPException(status_code=400, detail="Splitwise not connected")
+
+  # refresh if expired
+  if user.splitwise_token_expires_at and user.splitwise_token_expires_at < datetime.utcnow():
+      token_url = f"{SPLITWISE_BASE_URL}/oauth/token"
+      data = {
+          "grant_type": "refresh_token",
+          "refresh_token": user.splitwise_refresh_token,
+          "client_id": SPLITWISE_CLIENT_ID,
+          "client_secret": SPLITWISE_CLIENT_SECRET,
+      }
+      resp = requests.post(token_url, data=data)
+      if resp.status_code != 200:
+          raise HTTPException(status_code=400, detail="Failed to refresh Splitwise token")
+
+      tokens = resp.json()
+      user.splitwise_access_token = tokens["access_token"]
+      user.splitwise_refresh_token = tokens.get("refresh_token", user.splitwise_refresh_token)
+      expires_in = tokens.get("expires_in", 3600)
+      user.splitwise_token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+      db.commit()
+
+  return {"Authorization": f"Bearer {user.splitwise_access_token}"}
+
+
+
+def map_keywords(text: str) -> str:
+    t = (text or "").lower()
+    if any(k in t for k in ["food", "restaurant", "dinner", "lunch", "pizza", "coffee"]):
+        return "Food"
+    if any(k in t for k in ["uber", "ola", "taxi", "train", "flight", "bus", "travel"]):
+        return "Travel"
+    if any(k in t for k in ["rent", "electricity", "wifi", "bill"]):
+        return "Bills"
+    if any(k in t for k in ["amazon", "shopping", "clothes", "shirt", "jeans"]):
+        return "Shopping"
+    return "Miscellaneous"
+
+
+def categorize_with_ai(description: str, user: User) -> str:
+    """
+    TODO: Replace this with your real AI categorizer
+    (e.g., call sms_parser_api logic, then map to user's categories).
+
+    For now: just simple keyword mapping.
+    """
+    # Placeholder for LLM
+    return map_keywords(description or "")
+
+def sync_splitwise_for_user(db: Session, user: User, mode: str = "today") -> int:
+    if not user.splitwise_access_token:
+        return 0
+
+    headers = get_splitwise_auth_header(user, db)
+
+    params = {}
+    if mode == "today":
+        start_of_today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        params["dated_after"] = start_of_today.isoformat()
+
+    resp = requests.get(
+        f"{SPLITWISE_BASE_URL}/api/v3.0/get_expenses",
+        params=params,
+        headers=headers,
+    )
+    if resp.status_code != 200:
+        print("Splitwise error:", resp.text)
+        return 0
+
+    data = resp.json()
+    expenses = data.get("expenses", [])
+    imported = 0
+
+    for sw in expenses:
+        sw_id = sw.get("id")
+        if sw_id is None:
+            continue
+
+        # Avoid duplicates
+        existing = db.query(PendingTransaction).filter(
+            PendingTransaction.user_id == user.id,
+            PendingTransaction.splitwise_expense_id == sw_id,
+        ).first()
+        if existing:
+            continue
+
+        # Find this user’s record in the expense
+        me = None
+        for u in sw.get("users", []):
+            if u.get("user_id") == user.splitwise_user_id:
+                me = u
+                break
+
+        if not me:
+            continue
+
+        owed_raw = me.get("owed_share") or "0"
+        try:
+            owed = float(owed_raw)
+        except ValueError:
+            owed = 0.0
+
+        if owed <= 0:
+            continue
+
+        description = sw.get("description") or "Splitwise Expense"
+        sw_date = sw.get("date") or datetime.utcnow().isoformat()
+        date_str = sw_date.split("T")[0]
+
+        category = categorize_with_ai(description, user)
+
+        pending = PendingTransaction(
+            user_id=user.id,
+            token=token_urlsafe(16),
+            amount=owed,
+            description=description,
+            category=category,
+            date=date_str,
+            type="expense",
+            status="pending",
+            splitwise_expense_id=sw_id,
+            splitwise_group_name=(sw.get("group") or {}).get("name"),
+            splitwise_raw_json=json.dumps(sw),
+        )
+
+        db.add(pending)
+        imported += 1
+
+    user.splitwise_last_sync_at = datetime.utcnow()
+    db.commit()
+    return imported
+
 # ==========================================
 # AUTH ROUTES
 # ==========================================
 
+@app.post("/api/splitwise/sync-today")
+def sync_today(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    imported = sync_splitwise_for_user(db, current_user, mode="today")
+    return {"imported": imported}
+
+@app.post("/api/splitwise/sync-all-user")
+def sync_all_user(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    imported = sync_splitwise_for_user(db, current_user, mode="all")
+    return {"imported": imported}
+
+@app.post("/api/splitwise/sync-all")
+def sync_all(secret: str, db: Session = Depends(get_db)):
+    if secret != CRON_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    users = db.query(User).filter(User.splitwise_access_token.isnot(None)).all()
+    total = 0
+    for user in users:
+        try:
+            total += sync_splitwise_for_user(db, user, mode="today")
+        except Exception as e:
+            print(f"Sync failed for user {user.id}: {e}")
+
+    return {"users": len(users), "imported": total}
+
+
+@app.post("/api/splitwise/sync")
+def trigger_splitwise_sync(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    count = sync_splitwise_for_user(db, current_user)
+    return {"imported": count}
+
+CRON_SECRET = os.getenv("CRON_SECRET", "change-me")
+
+@app.post("/api/splitwise/sync-all")
+def sync_splitwise_all(
+    secret: str,
+    db: Session = Depends(get_db)
+):
+    if secret != CRON_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    users = db.query(User).filter(User.splitwise_access_token.isnot(None)).all()
+    total = 0
+    for user in users:
+        total += sync_splitwise_for_user(db, user)
+    return {"total_imported": total, "users": len(users)}
+
+
+from urllib.parse import urlencode
+
+@app.get("/api/splitwise/auth-url")
+def get_splitwise_auth_url(current_user: User = Depends(get_current_user)):
+    params = {
+        "response_type": "code",
+        "client_id": SPLITWISE_CLIENT_ID,
+        "redirect_uri": SPLITWISE_REDIRECT_URI,
+        "state": current_user.username,
+    }
+    url = f"{SPLITWISE_BASE_URL}/oauth/authorize?{urlencode(params)}"
+    return {"auth_url": url}
+
+@app.get("/api/splitwise/callback")
+def splitwise_callback(code: str, state: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == state).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid state")
+
+    token_url = f"{SPLITWISE_BASE_URL}/oauth/token"
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "client_id": SPLITWISE_CLIENT_ID,
+        "client_secret": SPLITWISE_CLIENT_SECRET,
+        "redirect_uri": SPLITWISE_REDIRECT_URI,
+    }
+    resp = requests.post(token_url, data=data)
+    if resp.status_code != 200:
+        print("Splitwise token error:", resp.text)
+        raise HTTPException(status_code=500, detail="Failed to get Splitwise tokens")
+
+    tokens = resp.json()
+    user.splitwise_access_token = tokens["access_token"]
+    user.splitwise_refresh_token = tokens.get("refresh_token")
+    expires_in = tokens.get("expires_in", 3600)
+    user.splitwise_token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+
+    # Get current user from Splitwise API so we know their Splitwise user id
+    headers = {"Authorization": f"Bearer {user.splitwise_access_token}"}
+    me_resp = requests.get(
+        f"{SPLITWISE_BASE_URL}/api/v3.0/get_current_user",
+        headers=headers,
+    )
+    if me_resp.status_code == 200:
+        me_data = me_resp.json()
+        sw_user = me_data.get("user") or {}
+        user.splitwise_user_id = sw_user.get("id")
+
+    db.commit()
+
+    # Auto-sync today's expenses once after connect
+    try:
+        sync_splitwise_for_user(db, user, mode="today")
+    except Exception as e:
+        print("Initial sync failed:", e)
+
+    # Redirect back to frontend
+    final_url = f"{FRONTEND_URL}/splitwise"
+    return RedirectResponse(url=final_url)
 
 
 @app.post("/api/signup", response_model=Token)
@@ -1524,6 +1803,7 @@ def delete_pending_transaction(token: str, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Transaction deleted"}
+
 
 # ==========================================
 # PROFILE ROUTES
