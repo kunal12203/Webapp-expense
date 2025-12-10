@@ -30,7 +30,7 @@ load_dotenv()
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-PLEASE")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "36500000"))
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expense_tracker.db")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 API_BASE = os.getenv("API_BASE_URL", "https://webapp-expense.onrender.com")

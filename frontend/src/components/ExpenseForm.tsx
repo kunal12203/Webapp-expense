@@ -44,9 +44,14 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
     loadCategories();
   }, [navigate]);
 
+  const isExpense = expense.type === 'expense';
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if (!expense.amount || !expense.category || !expense.date) return;
+    
+    // Validation: Only require category if it is an Expense
+    if (!expense.amount || (isExpense && !expense.category) || !expense.date) return;
+    
     setSaving(true);
 
     try {
@@ -60,17 +65,24 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
         body: JSON.stringify({
           ...expense,
           amount: parseFloat(expense.amount),
+          // If Income, force category to 'Income' (or leave empty if your backend prefers)
+          category: isExpense ? expense.category : 'Income'
         }),
       });
 
-      setExpense(prev => ({ ...prev, amount: "", description: "" }));
+      // Reset form (keep the current type)
+      setExpense(prev => ({ 
+        ...prev, 
+        amount: "", 
+        description: "",
+        category: "" 
+      }));
+      
       if (onExpenseAdded) onExpenseAdded();
     } finally {
       setSaving(false);
     }
   };
-
-  const isExpense = expense.type === 'expense';
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
@@ -124,24 +136,28 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
             />
           </div>
 
-          <div className="relative">
-            <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:mb-1.5 block ml-1">Category</label>
+          {/* Category - Only shown if Expense */}
+          {isExpense && (
             <div className="relative">
-              <Type className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 pointer-events-none z-10" />
-              <select
-                className="input-field pl-10 sm:pl-12 pr-3 appearance-none cursor-pointer text-sm sm:text-base truncate"
-                value={expense.category}
-                onChange={(e) => setExpense({ ...expense, category: e.target.value })}
-              >
-                <option value="">Select Category</option>
-                {categories.map((c: any) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
-                ))}
-              </select>
+              <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:mb-1.5 block ml-1">Category</label>
+              <div className="relative">
+                <Type className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 pointer-events-none z-10" />
+                <select
+                  className="input-field pl-10 sm:pl-12 pr-3 appearance-none cursor-pointer text-sm sm:text-base truncate"
+                  value={expense.category}
+                  onChange={(e) => setExpense({ ...expense, category: e.target.value })}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((c: any) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="relative">
+          {/* Date - Spans full width if Category is hidden */}
+          <div className={`relative ${!isExpense ? 'sm:col-span-2' : ''}`}>
             <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:mb-1.5 block ml-1">Date</label>
             <div className="relative">
               <Calendar className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 pointer-events-none z-10" />
@@ -154,6 +170,7 @@ const ExpenseForm = ({ onExpenseAdded }: any) => {
             </div>
           </div>
 
+          {/* Note */}
           <div className="sm:col-span-2 relative">
             <label className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:mb-1.5 block ml-1">Note (Optional)</label>
             <div className="relative">
