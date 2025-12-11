@@ -47,7 +47,7 @@ SPLITWISE_CLIENT_ID = os.getenv("SPLITWISE_CLIENT_ID")
 SPLITWISE_CLIENT_SECRET = os.getenv("SPLITWISE_CLIENT_SECRET")
 SPLITWISE_REDIRECT_URI = os.getenv(
     "SPLITWISE_REDIRECT_URI",
-    "https://splitwise-backend-hn9w.onrender.com/splitwise/callback"
+    f"{API_BASE}/api/splitwise/callback"
 )
 SPLITWISE_BASE_URL = "https://secure.splitwise.com"
 
