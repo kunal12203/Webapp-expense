@@ -42,6 +42,8 @@ export const API_ENDPOINTS = {
   splitwiseSyncToday: `${API_BASE}/api/splitwise/sync-today`,
   splitwiseSyncAll: `${API_BASE}/api/splitwise/sync-all-user`,
 
+  // --- Voice Transactions ---
+  voiceParseTransaction: `${API_BASE}/api/voice/parse-transaction`,
 
 
 };

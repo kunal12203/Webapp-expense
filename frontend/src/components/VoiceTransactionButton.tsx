@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 interface VoiceTransactionButtonProps {
   onTransactionCreated?: () => void;
@@ -65,7 +66,8 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://webapp-expense.onrender.com/api/voice/parse-transaction', {
+      
+      const response = await fetch(API_ENDPOINTS.voiceParseTransaction, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,18 +79,37 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Failed to process voice input');
+        // Handle different error formats
+        let errorMsg = 'Failed to process voice input';
+        if (typeof data.detail === 'string') {
+          errorMsg = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          errorMsg = data.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
+        } else if (data.detail) {
+          errorMsg = JSON.stringify(data.detail);
+        }
+        throw new Error(errorMsg);
       }
 
+      // Backend already creates pending transaction!
       if (data.success && data.amount) {
-        // Create pending transaction
-        await createPendingTransaction(data);
+        // Show success message
+        showSuccessMessage(data);
+        
+        // Clear transcript
         setTranscript('');
+        
+        // Notify parent component
         if (onTransactionCreated) {
           onTransactionCreated();
         }
+        
+        // Dispatch event to refresh pending transactions
+        window.dispatchEvent(new Event('pendingTransactionsUpdated'));
+      } else if (data.error) {
+        setError(data.error);
       } else {
-        setError(data.error || 'Could not understand the transaction. Please try again.');
+        setError('Could not understand the transaction. Please try again.');
       }
     } catch (err: any) {
       console.error('Error processing voice:', err);
@@ -98,36 +119,19 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
     }
   };
 
-  const createPendingTransaction = async (transaction: any) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch('https://webapp-expense.onrender.com/api/pending-transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        amount: transaction.amount,
-        category: transaction.category,
-        description: transaction.description,
-        date: transaction.date,
-        type: transaction.type
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create transaction');
-    }
-
-    // Show success message
+  const showSuccessMessage = (transaction: any) => {
     const successMsg = document.createElement('div');
-    successMsg.className = 'fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in';
-    successMsg.textContent = `✓ Added: ₹${transaction.amount} - ${transaction.description}`;
+    successMsg.className = 'fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] animate-fade-in';
+    successMsg.innerHTML = `
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>Added: ₹${transaction.amount} - ${transaction.description}</span>
+      </div>
+    `;
     document.body.appendChild(successMsg);
     setTimeout(() => successMsg.remove(), 3000);
-
-    // Dispatch event to refresh pending transactions
-    window.dispatchEvent(new Event('pendingTransactionsUpdated'));
   };
 
   const toggleListening = () => {

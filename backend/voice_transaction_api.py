@@ -1,16 +1,23 @@
 """
 Voice Transaction API - Convert speech to transaction using Claude AI
+ROOT FIX: Proper FastAPI router structure with HTTPBearer authentication
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 import os
 from datetime import datetime, timedelta
 import anthropic
+from secrets import token_urlsafe
 
+# Create router (NOT app!)
 router = APIRouter(prefix="/api/voice", tags=["Voice Transactions"])
+
+# Security
+security = HTTPBearer()
 
 # Initialize Claude AI client
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -18,6 +25,7 @@ if ANTHROPIC_API_KEY:
     claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 else:
     claude_client = None
+    print("Warning: ANTHROPIC_API_KEY not set. Voice features will not work.")
 
 
 def get_db():
@@ -30,10 +38,32 @@ def get_db():
         db.close()
 
 
-def get_current_user(credentials, db):
-    """Import from main"""
-    from main import get_current_user as main_get_current_user
-    return main_get_current_user(credentials, db)
+def authenticate_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security), 
+    db: Session = Depends(get_db)
+):
+    """Authenticate user from JWT token - avoids circular import"""
+    from main import User
+    from jose import jwt, JWTError
+    
+    SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-keep-it-secret")
+    ALGORITHM = "HS256"
+    
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
 # Pydantic Models
@@ -49,6 +79,7 @@ class VoiceTransactionResponse(BaseModel):
     date: Optional[str] = None
     type: str = "expense"
     error: Optional[str] = None
+    pending_id: Optional[int] = None
 
 
 def parse_relative_date(date_text: str) -> str:
@@ -78,18 +109,24 @@ def parse_relative_date(date_text: str) -> str:
 @router.post("/parse-transaction", response_model=VoiceTransactionResponse)
 def parse_voice_transaction(
     request: VoiceTransactionRequest,
-    current_user = Depends(get_current_user),
+    current_user = Depends(authenticate_user),
     db: Session = Depends(get_db)
 ):
     """
-    Parse voice transcription and extract transaction details using Claude Haiku
+    Parse voice transcription and extract transaction details using Claude AI
+    Creates a pending transaction that user can approve/edit
     """
     
-    if not claude_client:
-        raise HTTPException(status_code=500, detail="AI service not configured")
+    # Import models here to avoid circular import
+    from main import Category, PendingTransaction
     
-    # Get user's categories
-    from main import Category
+    if not claude_client:
+        raise HTTPException(
+            status_code=500, 
+            detail="AI service not configured. Please set ANTHROPIC_API_KEY environment variable."
+        )
+    
+    # Get user's categories for better matching
     user_categories = db.query(Category).filter(
         Category.user_id == current_user.id
     ).all()
@@ -97,7 +134,7 @@ def parse_voice_transaction(
     category_names = [cat.name for cat in user_categories]
     
     if not category_names:
-        category_names = ["Food", "Transport", "Bills", "Shopping", "Other"]
+        category_names = ["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Other"]
     
     # Prepare prompt for Claude
     today_date = datetime.now().date().isoformat()
@@ -110,14 +147,13 @@ User's Categories: {', '.join(category_names)}
 Today's Date: {today_date}
 
 Extract and return ONLY a JSON object with these fields:
-- amount (number): The transaction amount
-- category (string): Best matching category from user's list
-- description (string): Brief description in English (2-5 words)
+- amount (number): The transaction amount (extract numbers like 500, 1000, etc)
+- category (string): Best matching category from user's list above
+- description (string): Brief description in English (2-5 words max)
 - date (string): In YYYY-MM-DD format. Parse relative dates:
-  * "today" → {today_date}
-  * "yesterday" → {(datetime.now().date() - timedelta(days=1)).isoformat()}
+  * "today" or no date mentioned → {today_date}
+  * "yesterday" or "kal" → {(datetime.now().date() - timedelta(days=1)).isoformat()}
   * "last week" → {(datetime.now().date() - timedelta(days=7)).isoformat()}
-  * If no date mentioned → {today_date}
 - type (string): "expense" or "income"
 
 Examples:
@@ -130,13 +166,17 @@ Output: {{"amount": 200, "category": "Transport", "description": "Petrol", "date
 Input: "Paid 1500 for electricity bill yesterday"
 Output: {{"amount": 1500, "category": "Bills", "description": "Electricity bill", "date": "{(datetime.now().date() - timedelta(days=1)).isoformat()}", "type": "expense"}}
 
+Input: "Got 50000 salary"
+Output: {{"amount": 50000, "category": "Income", "description": "Salary", "date": "{today_date}", "type": "income"}}
+
 Return ONLY the JSON object, no other text."""
 
     try:
-        # Call Claude Haiku 4
+        # Call Claude Sonnet 4 for high quality parsing
         message = claude_client.messages.create(
-            model="claude-haiku-4-20250514",
-            max_tokens=200,
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            temperature=0.0,  # Deterministic for consistent parsing
             messages=[{"role": "user", "content": prompt}]
         )
         
@@ -144,48 +184,76 @@ Return ONLY the JSON object, no other text."""
         
         # Remove markdown code blocks if present
         if response_text.startswith("```"):
-            response_text = response_text.split("```")[1]
-            if response_text.startswith("json"):
-                response_text = response_text[4:]
-        response_text = response_text.strip()
+            lines = response_text.split("\n")
+            response_text = "\n".join(lines[1:-1])  # Remove first and last line
+        if response_text.startswith("json"):
+            response_text = response_text[4:].strip()
         
         # Parse JSON response
         import json
-        transaction_data = json.loads(response_text)
+        parsed_data = json.loads(response_text)
         
-        # Validate and normalize data
-        amount = float(transaction_data.get("amount", 0))
-        category = transaction_data.get("category", "Other")
-        description = transaction_data.get("description", "Voice transaction")
-        date_str = transaction_data.get("date", today_date)
-        trans_type = transaction_data.get("type", "expense")
+        # Extract and validate fields
+        amount = parsed_data.get("amount")
+        category = parsed_data.get("category") or "Other"
+        description = parsed_data.get("description") or request.text[:50]
+        date_str = parsed_data.get("date")
+        transaction_type = parsed_data.get("type", "expense")
         
-        # Ensure category is in user's list
+        # Validate amount
+        if not amount or amount <= 0:
+            return VoiceTransactionResponse(
+                success=False,
+                error="Could not detect a valid amount in your input. Please try again."
+            )
+        
+        # Parse date
+        if date_str:
+            final_date = parse_relative_date(date_str)
+        else:
+            final_date = today_date
+        
+        # Validate category exists in user's list
         if category not in category_names:
-            # Find closest match or use "Other"
-            category = "Other" if "Other" in category_names else category_names[0]
+            # Find closest match or use Other
+            category = "Other"
         
-        # Validate date format
-        date_str = parse_relative_date(date_str)
+        # Create pending transaction
+        pending = PendingTransaction(
+            user_id=current_user.id,
+            token=token_urlsafe(16),
+            amount=float(amount),
+            description=description,
+            category=category,
+            date=final_date,
+            type=transaction_type,
+            status="pending",
+            # No Splitwise fields for voice transactions
+        )
+        
+        db.add(pending)
+        db.commit()
+        db.refresh(pending)
         
         return VoiceTransactionResponse(
             success=True,
-            amount=amount,
+            amount=float(amount),
             category=category,
             description=description,
-            date=date_str,
-            type=trans_type
+            date=final_date,
+            type=transaction_type,
+            pending_id=pending.id
         )
         
     except json.JSONDecodeError as e:
-        print(f"JSON parsing error: {e}, Response: {response_text}")
+        print(f"JSON parse error: {e}, response: {response_text}")
         return VoiceTransactionResponse(
             success=False,
-            error=f"Failed to parse AI response"
+            error=f"Could not parse AI response. Please try speaking more clearly."
         )
     except Exception as e:
-        print(f"Voice transaction parsing error: {e}")
+        print(f"Voice parsing error: {e}")
         return VoiceTransactionResponse(
             success=False,
-            error=str(e)
+            error=f"Failed to process voice input: {str(e)}"
         )
