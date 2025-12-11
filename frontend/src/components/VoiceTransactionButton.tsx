@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Sparkles, X, Activity, Zap, Info, Cpu } from 'lucide-react';
+import { Mic, MicOff, Sparkles, X, Activity, Zap, Info, Cpu, AlertCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 
 interface VoiceTransactionButtonProps {
@@ -11,7 +11,7 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState('');
-  const [isHovered, setIsHovered] = useState(false);
+  const [emptyInputWarning, setEmptyInputWarning] = useState(false); // New state for empty input
   
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef<string>('');
@@ -31,7 +31,10 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => {
+      setIsListening(true);
+      setEmptyInputWarning(false);
+    };
 
     recognition.onresult = (event: any) => {
       let completeTranscript = '';
@@ -45,13 +48,23 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
       
       setTranscript(fullText);
       transcriptRef.current = fullText;
+      
+      // Clear warning if user starts speaking
+      if (fullText.trim().length > 0) {
+        setEmptyInputWarning(false);
+      }
     };
 
     recognition.onerror = (event: any) => {
       if (isCancelledRef.current) return;
-      setIsListening(false);
-      if (event.error !== 'aborted') {
-        setError(event.error === 'no-speech' ? 'No speech detected.' : 'Microphone error.');
+      // Don't stop listening on 'no-speech' errors, just let it continue or wait
+      if (event.error === 'no-speech') {
+        // Do nothing, keep listening
+      } else {
+        setIsListening(false);
+        if (event.error !== 'aborted') {
+          setError('Microphone error. Please restart.');
+        }
       }
     };
 
@@ -61,11 +74,16 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         return;
       }
 
+      // If stopped naturally (silence) or via stop()
       setIsListening(false);
       const finalTranscript = transcriptRef.current;
       
       if (finalTranscript && finalTranscript.trim()) {
         handleTranscript(finalTranscript.trim());
+      } else {
+        // If ended without text (and not cancelled), reset UI
+        // We don't show error here, just return to idle
+        resetState();
       }
     };
 
@@ -81,6 +99,7 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
     setIsProcessing(false);
     setTranscript('');
     setError('');
+    setEmptyInputWarning(false);
     transcriptRef.current = '';
     isCancelledRef.current = false;
   };
@@ -145,19 +164,34 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
     setTimeout(() => successMsg.remove(), 3000);
   };
 
-  const toggleListening = async () => {
-    if (!recognitionRef.current) return;
-
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      resetState();
-      try {
-        await recognitionRef.current.start();
-      } catch (e) {
-        console.error(e);
-      }
+  const startListening = async () => {
+    resetState();
+    try {
+      await recognitionRef.current.start();
+    } catch (e) {
+      console.error(e);
     }
+  };
+
+  // Logic for the main Floating Button
+  const handleMainButtonClick = () => {
+    if (isListening) {
+      // If clicked while listening, act as "Stop & Process"
+      handleStopAndProcess(); 
+    } else {
+      startListening();
+    }
+  };
+
+  const handleStopAndProcess = () => {
+    if (!transcript.trim()) {
+      // Validate: If empty, show warning and vibrate
+      setEmptyInputWarning(true);
+      if (navigator.vibrate) navigator.vibrate(200);
+      return;
+    }
+    // If valid, stop recording (triggers onend -> processing)
+    recognitionRef.current?.stop();
   };
 
   const handleCancel = () => {
@@ -166,26 +200,16 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
     resetState();
   };
 
-  // --- NEW: Advanced "Neural Shield" Visuals ---
+  // --- Visual Components ---
+
   const NeuralShield = () => (
-    <div className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-all duration-700 ${isHovered ? 'scale-125 opacity-100' : 'scale-100 opacity-0'}`}>
-      
-      {/* Outer Targeting Ring (Slow Spin) */}
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center transition-all duration-700 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-125">
+      {/* Outer Targeting Ring */}
       <div className="absolute w-32 h-32 rounded-full border border-indigo-500/20 border-t-indigo-400 border-b-purple-400 animate-[spin_8s_linear_infinite]" />
-      
-      {/* Inner Data Ring (Fast Reverse Spin) */}
+      {/* Inner Data Ring */}
       <div className="absolute w-24 h-24 rounded-full border border-dashed border-cyan-500/30 animate-[spin_4s_linear_infinite_reverse]" />
-      
       {/* Pulse Field */}
       <div className="absolute w-full h-full bg-indigo-500/10 rounded-full blur-xl animate-pulse" />
-      
-      {/* Orbiting Satellite Dots */}
-      <div className="absolute w-36 h-36 rounded-full animate-[spin_6s_linear_infinite]">
-        <div className="absolute top-0 left-1/2 w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-      </div>
-      <div className="absolute w-28 h-28 rounded-full animate-[spin_5s_linear_infinite_reverse]">
-        <div className="absolute bottom-0 left-1/2 w-1 h-1 bg-purple-400 rounded-full shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
-      </div>
     </div>
   );
 
@@ -194,7 +218,7 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
       {/* --- Main Floating AI Core --- */}
       <div className="fixed z-[9999] bottom-6 right-6 md:bottom-10 md:right-10 flex items-center justify-center group">
         
-        {/* Render Neural Shield on Idle/Hover */}
+        {/* Render Neural Shield (Only visible on hover via CSS) */}
         {!isListening && !isProcessing && <NeuralShield />}
 
         {/* Active Energy Rings (Listening State) */}
@@ -208,15 +232,13 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
 
         {/* The Core Button */}
         <button
-          onClick={toggleListening}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+          onClick={handleMainButtonClick}
           disabled={isProcessing}
           className={`
             relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center
             transition-all duration-500 transform
-            ${isHovered ? 'scale-110 shadow-[0_0_40px_rgba(99,102,241,0.5)]' : 'shadow-2xl shadow-indigo-500/30'}
-            ${isListening ? 'scale-110 shadow-[0_0_60px_rgba(99,102,241,0.7)]' : ''}
+            group-hover:scale-110 group-hover:shadow-[0_0_40px_rgba(99,102,241,0.5)]
+            ${isListening ? 'scale-110 shadow-[0_0_60px_rgba(99,102,241,0.7)]' : 'shadow-2xl shadow-indigo-500/30'}
           `}
         >
           {/* Background Gradient Mesh */}
@@ -224,18 +246,18 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
             absolute inset-0 rounded-full overflow-hidden transition-all duration-500
             ${isListening ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-900 to-indigo-950'}
           `}>
-             {/* Core Glow - Reacts to State */}
+             {/* Core Glow */}
              <div className={`
                 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full
                 bg-gradient-to-tr from-indigo-600 via-purple-600 to-cyan-500 opacity-80 blur-lg
                 transition-all duration-500
-                ${isHovered && !isListening ? 'scale-90 opacity-90' : 'scale-75 opacity-70'}
-                ${isListening ? 'animate-pulse scale-110 opacity-100' : ''}
+                group-hover:scale-90 group-hover:opacity-90
+                ${isListening ? 'animate-pulse scale-110 opacity-100' : 'scale-75 opacity-70'}
                 ${isProcessing ? 'animate-[spin_1s_linear_infinite] from-amber-500 via-orange-600 to-red-500' : ''}
              `} />
           </div>
 
-          {/* Glass Overlay with Hex Pattern Hint */}
+          {/* Glass Overlay */}
           <div className="absolute inset-0 rounded-full bg-white/5 backdrop-blur-[1px] border border-white/20" />
 
           {/* Icon Layer */}
@@ -245,12 +267,12 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
              ) : isListening ? (
                <Activity className="w-8 h-8 md:w-9 md:h-9 animate-bounce" />
              ) : (
-               // Switch icon on hover to show "AI Ready"
-               isHovered ? (
-                 <Cpu className="w-8 h-8 md:w-9 md:h-9 animate-pulse text-cyan-200" />
-               ) : (
-                 <Mic className="w-8 h-8 md:w-9 md:h-9" />
-               )
+               <>
+                 {/* Default Mic */}
+                 <Mic className="w-8 h-8 md:w-9 md:h-9 group-hover:hidden transition-all" />
+                 {/* Hover CPU (Hidden on mobile usually unless tapped/hovered) */}
+                 <Cpu className="w-8 h-8 md:w-9 md:h-9 hidden group-hover:block animate-pulse text-cyan-200" />
+               </>
              )}
           </div>
         </button>
@@ -258,32 +280,32 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
 
       {/* --- Holographic HUD Overlay --- */}
       {(isListening || isProcessing || error) && (
-        <div className="fixed inset-0 z-[9990] bg-slate-950/70 backdrop-blur-md transition-opacity duration-300 flex flex-col items-center justify-center">
+        <div className="fixed inset-0 z-[9990] bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 flex flex-col items-center justify-center p-4">
           
-          <div className="pointer-events-auto relative w-full max-w-lg mx-4">
+          <div className="pointer-events-auto relative w-full max-w-lg">
             
-            {/* Top Decorator Line (Scanner) */}
+            {/* Top Decorator Line */}
             <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-48 h-0.5 bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
 
             {/* Main Glass Card */}
             <div className={`
               glass-card overflow-hidden transition-all duration-300
-              bg-[#0f172a]/90 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.6)]
-              rounded-3xl p-8 text-center relative
+              bg-[#0f172a]/95 border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.6)]
+              rounded-3xl p-6 md:p-8 text-center relative
               ${error ? 'border-rose-500/30 shadow-rose-900/20' : 'border-indigo-500/30 shadow-indigo-900/20'}
+              ${emptyInputWarning ? 'animate-shake border-amber-500/50' : ''}
             `}>
               
-              {/* --- ALWAYS VISIBLE CLOSE BUTTON --- */}
+              {/* Close Button */}
               <button 
                 onClick={handleCancel}
-                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200 z-20 group"
-                title="Close"
+                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200 z-20"
               >
-                <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                <X className="w-6 h-6" />
               </button>
 
               {/* Status Header */}
-              <div className="flex items-center justify-center gap-3 mb-8">
+              <div className="flex items-center justify-center gap-3 mb-6 md:mb-8">
                  {isProcessing ? (
                    <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                      <Zap className="w-3 h-3 animate-pulse text-amber-400" />
@@ -309,31 +331,43 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
                   <p className={`
                     text-2xl md:text-3xl font-light leading-snug transition-all duration-200
                     ${!transcript ? 'text-slate-600 italic' : 'text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-indigo-200 drop-shadow-sm'}
+                    ${emptyInputWarning ? 'text-amber-400' : ''}
                   `}>
-                    {transcript || "Listening for expenses..."}
+                    {emptyInputWarning 
+                      ? "I didn't hear anything..." 
+                      : (transcript || "Listening...")}
                   </p>
                 )}
               </div>
               
-              {/* Helpful Hint (Only if no error and not processing) */}
+              {/* Helpful Hint */}
               {!isProcessing && !error && (
                 <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-3 animate-slide-up">
-                  <div className="flex items-center gap-2 text-indigo-300 text-xs font-medium bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/10">
-                    <Info className="w-3.5 h-3.5" />
-                    <span>AI Tip: You can speak multiple items!</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-mono">
-                    "Spent 200 on Coffee and 5000 for Electricity Bill"
-                  </p>
+                  {emptyInputWarning ? (
+                     <div className="flex items-center gap-2 text-amber-300 text-xs font-medium bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/10">
+                       <AlertCircle className="w-3.5 h-3.5" />
+                       <span>Please speak your expense first!</span>
+                     </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 text-indigo-300 text-xs font-medium bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/10">
+                        <Info className="w-3.5 h-3.5" />
+                        <span>AI Tip: You can speak multiple items!</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-mono hidden sm:block">
+                        "Spent 200 on Coffee and 5000 for Electricity Bill"
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* Stop Button (When Listening) */}
+              {/* Stop Button */}
               {isListening && (
                 <div className="mt-8 flex justify-center">
                    <button 
-                     onClick={toggleListening} // Use toggle to trigger normal stop/process
-                     className="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                     onClick={handleStopAndProcess} 
+                     className="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 w-full sm:w-auto justify-center"
                    >
                      <div className="w-2 h-2 bg-white rounded-sm animate-pulse" /> Stop & Process
                    </button>
