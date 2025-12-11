@@ -124,7 +124,7 @@ const Layout = () => {
               </div>
 
               <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-pink-500 to-violet-600 text-white shadow-sm">
-                NEW
+                Construction
               </span>
 
               {location.pathname === "/splitwise" && (
