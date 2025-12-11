@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, DateTime, ForeignKey, func
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, DateTime, ForeignKey, func, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
@@ -129,7 +129,7 @@ class PendingTransaction(Base):
     created_at = Column(Date, default=datetime.utcnow)
     status = Column(String, default="pending")
      # 🔹 Splitwise-specific
-    splitwise_expense_id = Column(Integer, nullable=True, index=True)
+    splitwise_expense_id = Column(BigInteger, nullable=True, index=True)
     splitwise_group_name = Column(String, nullable=True)
     splitwise_raw_json = Column(String, nullable=True)  # optional, for debugging
 
