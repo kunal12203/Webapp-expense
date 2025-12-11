@@ -350,12 +350,15 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
                      </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 text-indigo-300 text-xs font-medium bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/10">
-                        <Info className="w-3.5 h-3.5" />
-                        <span>AI Tip: You can speak multiple items!</span>
+                      {/* Language Instruction */}
+                      <div className="flex items-center gap-2 text-indigo-300 text-xs font-medium bg-indigo-500/10 px-3 py-2 rounded-lg border border-indigo-500/10 text-center leading-relaxed">
+                        <Info className="w-4 h-4 shrink-0" />
+                        <span>
+                          Speak <b>amounts in English</b> (e.g., "Five Hundred"), rest in <b>Hindi or English</b>.
+                        </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 font-mono hidden sm:block">
-                        "Spent 200 on Coffee and 5000 for Electricity Bill"
+                      <p className="text-[11px] text-slate-500 font-mono hidden sm:block mt-1">
+                        "Coffee ka 200 rupees diya" or "Spent 5000 on Bill"
                       </p>
                     </>
                   )}

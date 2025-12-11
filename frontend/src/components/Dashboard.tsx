@@ -6,15 +6,15 @@ import Charts from "./Charts";
 import CategoryManager from "./CategoryManager";
 import { StatsCards } from "./StatsCards";
 import { API_ENDPOINTS } from "../config/api";
-import { Settings, RefreshCw, Calendar } from "lucide-react";
+import { Settings, RefreshCw, Calendar, Mic, X } from "lucide-react";
 
 const Dashboard = () => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showVoiceTip, setShowVoiceTip] = useState(true); // State for notification visibility
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [loading, setLoading] = useState(false);
   
   // Stats State
-  // FIX: Added <any[]> to prevent 'never[]' type inference error
   const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState({ income: 0, expenses: 0, balance: 0 });
 
@@ -30,16 +30,13 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         
-        // Safety: Handle non-200 responses
         if (!res.ok) throw new Error("Failed to fetch data");
 
         const data = await res.json();
         
-        // Ensure data is actually an array before setting state
         if (Array.isArray(data)) {
           setTransactions(data);
 
-          // Calculate Stats
           const income = data
             .filter((t: any) => t.type === 'income')
             .reduce((acc: number, curr: any) => acc + curr.amount, 0);
@@ -55,7 +52,7 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error("Failed to load stats", error);
-        setTransactions([]); // Fallback to empty state
+        setTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -74,7 +71,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen w-full pb-12">
-      {/* Main Container: Limits width on large screens for elegance */}
+      {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pt-6">
         
         {/* --- Header Section --- */}
@@ -106,6 +103,32 @@ const Dashboard = () => {
             </button>
           </div>
         </header>
+
+        {/* --- Voice Feature Notification --- */}
+        {showVoiceTip && (
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/20 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+             <div className="relative flex items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                    <Mic className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="text-white">
+                    <h3 className="font-bold text-sm sm:text-base">Try Voice Transactions!</h3>
+                    <p className="text-indigo-100 text-xs sm:text-sm leading-relaxed">
+                      Tap the microphone button on the screen to record your expenses instantly using your voice.
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowVoiceTip(false)}
+                  className="shrink-0 rounded-lg p-2 text-indigo-100 hover:bg-white/10 hover:text-white transition-colors"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+             </div>
+          </div>
+        )}
 
         {/* --- Stats Cards --- */}
         <section className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
