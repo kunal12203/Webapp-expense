@@ -644,28 +644,74 @@ def get_splitwise_auth_header(user: User, db: Session) -> dict:
 
 
 
+def categorize_with_ai(description: str, user: User, db: Session) -> str:
+    """
+    Use Claude AI to categorize expense based on description and user's categories
+    """
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    
+    # Get user's categories
+    user_categories = db.query(Category).filter(
+        Category.user_id == user.id
+    ).all()
+    
+    category_names = [cat.name for cat in user_categories]
+    
+    # If no categories or no API key, use fallback
+    if not category_names or not ANTHROPIC_API_KEY:
+        return map_keywords(description)
+    
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        
+        prompt = f"""You are categorizing an expense. Choose the BEST matching category from the user's list.
+
+Expense Description: "{description}"
+
+User's Categories:
+{', '.join(category_names)}
+
+Instructions:
+- Return ONLY the category name, nothing else
+- Choose the most appropriate category from the list above
+- If nothing matches well, use the most general category available
+- DO NOT return a category not in the list
+
+Category:"""
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=50,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        category = message.content[0].text.strip()
+        
+        # Validate it's in user's categories
+        if category in category_names:
+            return category
+        
+        # If AI returned invalid category, use fallback
+        return map_keywords(description)
+        
+    except Exception as e:
+        print(f"AI categorization failed: {e}")
+        return map_keywords(description)
+
+
 def map_keywords(text: str) -> str:
+    """Fallback keyword-based categorization"""
     t = (text or "").lower()
     if any(k in t for k in ["food", "restaurant", "dinner", "lunch", "pizza", "coffee"]):
         return "Food"
     if any(k in t for k in ["uber", "ola", "taxi", "train", "flight", "bus", "travel"]):
-        return "Travel"
+        return "Transport"
     if any(k in t for k in ["rent", "electricity", "wifi", "bill"]):
         return "Bills"
     if any(k in t for k in ["amazon", "shopping", "clothes", "shirt", "jeans"]):
         return "Shopping"
-    return "Miscellaneous"
-
-
-def categorize_with_ai(description: str, user: User) -> str:
-    """
-    TODO: Replace this with your real AI categorizer
-    (e.g., call sms_parser_api logic, then map to user's categories).
-
-    For now: just simple keyword mapping.
-    """
-    # Placeholder for LLM
-    return map_keywords(description or "")
+    return "Other"
 
 def sync_splitwise_for_user(db: Session, user: User, mode: str = "today") -> int:
     if not user.splitwise_access_token:
@@ -727,7 +773,7 @@ def sync_splitwise_for_user(db: Session, user: User, mode: str = "today") -> int
         sw_date = sw.get("date") or datetime.utcnow().isoformat()
         date_str = sw_date.split("T")[0]
 
-        category = categorize_with_ai(description, user)
+        category = categorize_with_ai(description, user, db)
 
         pending = PendingTransaction(
             user_id=user.id,
