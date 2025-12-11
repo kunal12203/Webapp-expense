@@ -811,6 +811,17 @@ def get_splitwise_auth_url(current_user: User = Depends(get_current_user)):
     url = f"{SPLITWISE_BASE_URL}/oauth/authorize?{urlencode(params)}"
     return {"auth_url": url}
 
+@app.get("/api/splitwise/debug-config")
+def debug_splitwise_config(current_user: User = Depends(get_current_user)):
+    """Debug endpoint to check Splitwise configuration"""
+    return {
+        "client_id_present": bool(SPLITWISE_CLIENT_ID),
+        "client_secret_present": bool(SPLITWISE_CLIENT_SECRET),
+        "redirect_uri": SPLITWISE_REDIRECT_URI,
+        "frontend_url": FRONTEND_URL,
+        "api_base": API_BASE,
+    }
+
 @app.get("/api/splitwise/callback")
 def splitwise_callback(code: str, state: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == state).first()
@@ -825,10 +836,35 @@ def splitwise_callback(code: str, state: str, db: Session = Depends(get_db)):
         "client_secret": SPLITWISE_CLIENT_SECRET,
         "redirect_uri": SPLITWISE_REDIRECT_URI,
     }
+    
+    print(f"🔹 Exchanging token with Splitwise...")
+    print(f"   Redirect URI: {SPLITWISE_REDIRECT_URI}")
+    print(f"   Client ID present: {bool(SPLITWISE_CLIENT_ID)}")
+    print(f"   Client Secret present: {bool(SPLITWISE_CLIENT_SECRET)}")
+    
     resp = requests.post(token_url, data=data)
     if resp.status_code != 200:
-        print("Splitwise token error:", resp.text)
-        raise HTTPException(status_code=500, detail="Failed to get Splitwise tokens")
+        error_detail = resp.text
+        print(f"❌ Splitwise token exchange failed!")
+        print(f"   Status: {resp.status_code}")
+        print(f"   Error: {error_detail}")
+        
+        # Return more helpful error
+        if "redirect_uri" in error_detail.lower():
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Redirect URI mismatch. Expected: {SPLITWISE_REDIRECT_URI}"
+            )
+        elif "client" in error_detail.lower():
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid Client ID or Secret. Check environment variables."
+            )
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Splitwise OAuth failed: {error_detail[:200]}"
+            )
 
     tokens = resp.json()
     user.splitwise_access_token = tokens["access_token"]
