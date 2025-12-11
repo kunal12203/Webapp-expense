@@ -5,6 +5,7 @@ import {
   PieChart, Settings, Menu, X, Receipt, Clock, Zap
 } from 'lucide-react';
 import { Users } from "lucide-react";
+import VoiceTransactionButton from './VoiceTransactionButton';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -163,6 +164,9 @@ const Layout = () => {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
+      {/* Global Voice Transaction Button - Shows on all pages */}
+      <VoiceTransactionButton />
     </div>
   );
 };

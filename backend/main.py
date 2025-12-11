@@ -28,6 +28,9 @@ from urllib.parse import urlencode
 # Import SMS parser router
 from sms_parser_api import router as sms_router
 
+# Import voice transaction router
+from voice_transaction_api import router as voice_router
+
 import json
 
 from fastapi.responses import RedirectResponse
@@ -334,6 +337,7 @@ class CategoryMigration(Base):
 
 app = FastAPI(title="Expense Tracker API", version="3.0.0")
 app.include_router(sms_router)
+app.include_router(voice_router)
 
 @app.on_event("startup")
 async def startup_event():
