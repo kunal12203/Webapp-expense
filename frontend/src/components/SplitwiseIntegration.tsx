@@ -131,9 +131,7 @@ const SplitwiseIntegration: React.FC = () => {
               <CheckCircle className="text-green-500 w-6 h-6" />
               <div>
                 <h2 className="text-xl font-semibold">Connected to Splitwise</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Splitwise User ID: {profile.splitwise_user_id}
-                </p>
+                
               </div>
             </div>
 
@@ -198,15 +196,7 @@ const SplitwiseIntegration: React.FC = () => {
         )}
       </div>
 
-      <div className="glass-card p-6 rounded-2xl border space-y-2">
-        <h2 className="text-lg font-semibold">How it works</h2>
-        <p>1️⃣ Connect Splitwise and authorize access.</p>
-        <p>2️⃣ We store tokens securely and know your Splitwise user ID.</p>
-        <p>3️⃣ For each expense where you are a participant, we take your <b>owed_share</b>.</p>
-        <p>4️⃣ That amount is added as a Pending Transaction in your account.</p>
-        <p>5️⃣ Category is chosen using AI + your own categories.</p>
-        <p>6️⃣ Background cron also syncs automatically after some interval.</p>
-      </div>
+      
     </div>
   );
 };
