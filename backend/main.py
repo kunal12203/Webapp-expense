@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, DateTime, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
@@ -1432,7 +1432,7 @@ def get_category_stats(
             Expense.category == category.name,
             Expense.type == "expense"  # Only sum expenses, not income
         ).with_entities(
-            db.func.sum(Expense.amount)
+            func.sum(Expense.amount)
         ).scalar() or 0
         
         stats.append({
