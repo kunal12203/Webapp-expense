@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Sparkles, X, Activity, Zap, Info } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 
 interface VoiceTransactionButtonProps {
@@ -11,103 +11,90 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState('');
+  const [isHovered, setIsHovered] = useState(false);
+  
   const recognitionRef = useRef<any>(null);
-  const transcriptRef = useRef<string>(''); // Store latest transcript
+  const transcriptRef = useRef<string>('');
+  const isCancelledRef = useRef(false);
 
   useEffect(() => {
-    // Check if browser supports speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      setError('Speech recognition not supported in this browser');
+      setError('Speech recognition not supported');
       return;
     }
 
-    // Initialize speech recognition
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN'; // Indian English - handles Hinglish well
-    recognition.continuous = true; // Changed to true - keeps listening until manually stopped
-    recognition.interimResults = true; // Show what user is saying in real-time
+    recognition.lang = 'en-IN';
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
-    // Add onstart handler to confirm it started
-    recognition.onstart = () => {
-      console.log('🎤 Recognition actually started');
-      setIsListening(true);
-    };
+    recognition.onstart = () => setIsListening(true);
 
     recognition.onresult = (event: any) => {
-      // Build complete transcript from all final results
       let completeTranscript = '';
       for (let i = 0; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
           completeTranscript += event.results[i][0].transcript + ' ';
         }
       }
+      const currentText = event.results[event.results.length - 1][0].transcript;
+      const fullText = completeTranscript.trim() ? completeTranscript.trim() + ' ' + currentText : currentText;
       
-      // Get current interim result
-      const resultIndex = event.results.length - 1;
-      const currentText = event.results[resultIndex][0].transcript;
-      
-      // Combine final + interim
-      const fullText = completeTranscript.trim() 
-        ? completeTranscript.trim() + ' ' + currentText 
-        : currentText;
-      
-      // Update both state and ref
       setTranscript(fullText);
       transcriptRef.current = fullText;
     };
 
     recognition.onerror = (event: any) => {
+      if (isCancelledRef.current) return;
       setIsListening(false);
-      
-      if (event.error === 'no-speech') {
-        setError('No speech detected. Please speak clearly and try again.');
-      } else if (event.error === 'not-allowed' || event.error === 'permission-denied') {
-        setError('Microphone access denied. Please allow microphone access in browser settings.');
-      } else if (event.error === 'network') {
-        setError('Network error. Please check your internet connection.');
-      } else if (event.error === 'aborted') {
-        // Silent - user stopped intentionally
-      } else {
-        setError(`Speech recognition error: ${event.error}. Please try again.`);
+      if (event.error !== 'aborted') {
+        setError(event.error === 'no-speech' ? 'No speech detected.' : 'Microphone error.');
       }
     };
 
     recognition.onend = () => {
+      if (isCancelledRef.current) {
+        resetState();
+        return;
+      }
+
+      setIsListening(false);
       const finalTranscript = transcriptRef.current;
       
-      setIsListening(false);
-      
-      // Process the transcript if we have something
       if (finalTranscript && finalTranscript.trim()) {
         handleTranscript(finalTranscript.trim());
-      } else {
-        setError('No speech detected. Please try again.');
       }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
+      if (recognitionRef.current) recognitionRef.current.stop();
     };
   }, []);
 
+  const resetState = () => {
+    setIsListening(false);
+    setIsProcessing(false);
+    setTranscript('');
+    setError('');
+    transcriptRef.current = '';
+    isCancelledRef.current = false;
+  };
+
   const handleTranscript = async (text: string) => {
+    // If cancelled just before processing started
+    if (isCancelledRef.current) return;
+
     setIsProcessing(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      
-      if (!token) {
-        setError('Not logged in. Please login first.');
-        return;
-      }
+      if (!token) throw new Error('Authentication required');
       
       const response = await fetch(API_ENDPOINTS.voiceParseTransaction, {
         method: 'POST',
@@ -118,216 +105,234 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         body: JSON.stringify({ text })
       });
 
+      // Check cancel again after async op
+      if (isCancelledRef.current) return;
+
       const data = await response.json();
 
-      if (!response.ok) {
-        // Handle different error formats
-        let errorMsg = 'Failed to process voice input';
-        if (typeof data.detail === 'string') {
-          errorMsg = data.detail;
-        } else if (Array.isArray(data.detail)) {
-          errorMsg = data.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
-        } else if (data.detail) {
-          errorMsg = JSON.stringify(data.detail);
-        }
-        throw new Error(errorMsg);
-      }
+      if (!response.ok) throw new Error(data.detail || 'Processing failed');
 
-      // Backend already creates expense directly!
       if (data.success && data.amount) {
-        // Show success message
         showSuccessMessage(data);
-        
-        // Clear transcript
-        setTranscript('');
-        
-        // Notify parent component
-        if (onTransactionCreated) {
-          onTransactionCreated();
-        }
-        
-        // Dispatch event to refresh expenses (not pending)
+        resetState();
+        if (onTransactionCreated) onTransactionCreated();
         window.dispatchEvent(new Event('expensesUpdated'));
-      } else if (data.error) {
-        setError(data.error);
       } else {
-        setError('Could not understand the transaction. Please try again.');
+        throw new Error(data.error || 'Could not understand transaction');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to process voice input');
+      if (!isCancelledRef.current) {
+        setError(err.message);
+      }
     } finally {
-      setIsProcessing(false);
+      if (!isCancelledRef.current) {
+        setIsProcessing(false);
+      }
     }
   };
 
   const showSuccessMessage = (transaction: any) => {
     const successMsg = document.createElement('div');
-    successMsg.className = 'fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] animate-fade-in max-w-sm';
-    
-    // Check if multiple transactions
-    const count = transaction.category?.includes('transactions') 
-      ? parseInt(transaction.category) 
-      : 1;
-    
-    if (count > 1) {
-      successMsg.innerHTML = `
-        <div class="flex items-center gap-2">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-          </svg>
-          <div>
-            <div class="font-semibold">Added ${count} transactions</div>
-            <div class="text-sm opacity-90">Total: ₹${transaction.amount}</div>
-          </div>
+    successMsg.className = 'fixed top-24 right-4 bg-emerald-500/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl z-[10000] animate-slide-in border border-emerald-400/30';
+    successMsg.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="bg-white/20 p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>
+        <div>
+          <div class="font-bold text-sm">Transaction Added</div>
+          <div class="text-xs opacity-90 mt-0.5">₹${transaction.amount} • ${transaction.category}</div>
         </div>
-      `;
-    } else {
-      successMsg.innerHTML = `
-        <div class="flex items-center gap-2">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-          </svg>
-          <span>Added: ₹${transaction.amount} - ${transaction.description}</span>
-        </div>
-      `;
-    }
-    
+      </div>
+    `;
     document.body.appendChild(successMsg);
     setTimeout(() => successMsg.remove(), 3000);
   };
 
   const toggleListening = async () => {
-    if (!recognitionRef.current) {
-      setError('Speech recognition not available');
-      return;
-    }
+    if (!recognitionRef.current) return;
 
     if (isListening) {
-      recognitionRef.current.stop(); // This will trigger onend which processes transcript
-      setIsListening(false);
+      recognitionRef.current.stop();
     } else {
-      setError('');
-      setTranscript('');
-      transcriptRef.current = ''; // Clear ref
-      
-      // Check microphone permission first
+      resetState();
       try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-        }
-      } catch (err: any) {
-        setError('Microphone access required. Please allow microphone access.');
-        return;
-      }
-      
-      try {
-        recognitionRef.current.start();
-      } catch (err: any) {
-        if (err.message && err.message.includes('already started')) {
-          recognitionRef.current.stop();
-          setTimeout(() => {
-            recognitionRef.current.start();
-          }, 100);
-        } else {
-          setError('Failed to start microphone: ' + err.message);
-        }
+        await recognitionRef.current.start();
+      } catch (e) {
+        console.error(e);
       }
     }
   };
 
+  const handleCancel = () => {
+    isCancelledRef.current = true;
+    recognitionRef.current?.stop(); // Stop mic
+    resetState(); // Clear all UI
+  };
+
+  // SVG for circular text
+  const CircularText = () => (
+    <div className={`
+      absolute w-28 h-28 pointer-events-none transition-all duration-500
+      ${isHovered ? 'opacity-100 scale-110' : 'opacity-40 scale-90'}
+      ${isListening ? 'opacity-0' : ''}
+    `}>
+      <svg viewBox="0 0 100 100" className="w-full h-full animate-[spin_10s_linear_infinite]">
+        <path
+          id="circlePath"
+          d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0"
+          fill="none"
+        />
+        <text className="fill-indigo-500 dark:fill-indigo-300 font-mono text-[17px] font-bold tracking-widest uppercase">
+          <textPath href="#circlePath" startOffset="0%">
+            RECORD YOUR EXPENSE
+          </textPath>
+        </text>
+      </svg>
+    </div>
+  );
+
   return (
     <>
-      {/* Voice Button - Fixed position */}
-      <button
-        onClick={toggleListening}
-        disabled={isProcessing}
-        className={`
-          fixed z-[9999] 
-          bottom-6 right-6 md:bottom-8 md:right-8
-          w-14 h-14 md:w-16 md:h-16
-          rounded-full shadow-2xl
-          flex items-center justify-center
-          transition-all duration-300 transform
-          ${isListening 
-            ? 'bg-red-500 hover:bg-red-600 scale-110 animate-pulse' 
-            : 'bg-gradient-to-br from-indigo-600 to-violet-600 hover:scale-110 hover:shadow-indigo-500/50'
-          }
-          ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          disabled:opacity-50
-        `}
-        title={isListening ? 'Stop recording' : 'Start voice transaction'}
-      >
-        {isProcessing ? (
-          <Loader2 className="w-6 h-6 md:w-7 md:h-7 text-white animate-spin" />
-        ) : isListening ? (
-          <MicOff className="w-6 h-6 md:w-7 md:h-7 text-white animate-pulse" />
-        ) : (
-          <Mic className="w-6 h-6 md:w-7 md:h-7 text-white" />
+      {/* --- Main Floating AI Core --- */}
+      <div className="fixed z-[9999] bottom-6 right-6 md:bottom-10 md:right-10 flex items-center justify-center">
+        
+        {/* Rotating Text Ring */}
+        {!isListening && !isProcessing && <CircularText />}
+
+        {/* Orbiting Energy Rings */}
+        {isListening && (
+          <>
+            <div className="absolute w-32 h-32 rounded-full border border-indigo-500/30 animate-[spin_3s_linear_infinite]" />
+            <div className="absolute w-28 h-28 rounded-full border border-dashed border-purple-500/40 animate-[spin_4s_linear_infinite_reverse]" />
+            <div className="absolute w-40 h-40 rounded-full border border-cyan-400/20 animate-ping opacity-20" />
+          </>
         )}
-      </button>
 
-      {/* Cancel Button - Shows only when listening */}
-      {isListening && (
+        {/* The Core Button */}
         <button
-          onClick={() => {
-            recognitionRef.current?.stop();
-            setIsListening(false);
-            setTranscript('');
-            transcriptRef.current = '';
-          }}
-          className="fixed z-[9999] bottom-24 right-6 md:bottom-28 md:right-8 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-full shadow-xl transition-all animate-fade-in"
+          onClick={toggleListening}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          disabled={isProcessing}
+          className={`
+            relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center
+            transition-all duration-500 transform hover:scale-105 active:scale-95
+            ${isListening ? 'shadow-[0_0_50px_rgba(99,102,241,0.6)]' : 'shadow-2xl shadow-indigo-500/30'}
+          `}
         >
-          Cancel
+          {/* Background Gradient */}
+          <div className={`
+            absolute inset-0 rounded-full overflow-hidden transition-all duration-500
+            ${isListening ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-900 to-indigo-950'}
+          `}>
+             <div className={`
+                absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full
+                bg-gradient-to-tr from-indigo-600 via-purple-600 to-cyan-500 opacity-80 blur-lg
+                transition-all duration-500
+                ${isListening ? 'animate-pulse scale-110' : 'scale-75'}
+                ${isProcessing ? 'animate-[spin_1s_linear_infinite] from-amber-500 via-orange-600 to-red-500' : ''}
+             `} />
+          </div>
+
+          {/* Glass Overlay */}
+          <div className="absolute inset-0 rounded-full bg-white/10 backdrop-blur-[1px] border border-white/20" />
+
+          {/* Icon */}
+          <div className="relative z-10 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+             {isProcessing ? (
+               <Sparkles className="w-8 h-8 md:w-9 md:h-9 animate-spin" />
+             ) : isListening ? (
+               <Activity className="w-8 h-8 md:w-9 md:h-9 animate-bounce" />
+             ) : (
+               <Mic className="w-8 h-8 md:w-9 md:h-9" />
+             )}
+          </div>
         </button>
-      )}
+      </div>
 
-      {/* Listening Indicator */}
-      {isListening && (
-        <div className="fixed bottom-36 right-6 md:bottom-40 md:right-8 bg-white dark:bg-slate-800 rounded-lg shadow-xl p-4 z-[9998] animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1">
-              <div className="w-1 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-1 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-1 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
+      {/* --- Holographic HUD Overlay --- */}
+      {(isListening || isProcessing || error) && (
+        <div className="fixed inset-0 z-[9990] bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 flex flex-col items-center justify-center">
+          
+          <div className="pointer-events-auto relative w-full max-w-lg mx-4">
+            
+            {/* Top Decorator Line */}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
+
+            {/* Main Card */}
+            <div className={`
+              glass-card overflow-hidden transition-all duration-300
+              bg-slate-900/80 border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]
+              rounded-3xl p-8 text-center relative
+              ${error ? 'border-rose-500/30' : 'border-indigo-500/30'}
+            `}>
+              
+              {/* --- ALWAYS VISIBLE CLOSE BUTTON --- */}
+              <button 
+                onClick={handleCancel}
+                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200 z-20 group"
+                title="Close"
+              >
+                <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              </button>
+
+              {/* Header */}
+              <div className="flex items-center justify-center gap-2 mb-6 text-xs font-bold tracking-[0.2em] uppercase text-indigo-400">
+                {isProcessing ? (
+                   <>
+                    <Zap className="w-4 h-4 animate-pulse text-amber-400" />
+                    <span className="text-amber-400 animate-pulse">Processing...</span>
+                   </>
+                ) : isListening ? (
+                   <>
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-indigo-300">Listening</span>
+                   </>
+                ) : (
+                  <span className="text-rose-400">Error</span>
+                )}
+              </div>
+
+              {/* Text Area */}
+              <div className="min-h-[60px] flex items-center justify-center">
+                {error ? (
+                  <p className="text-rose-400 font-medium">{error}</p>
+                ) : (
+                  <p className={`
+                    text-xl md:text-2xl font-light leading-relaxed transition-all duration-200
+                    ${!transcript ? 'text-slate-500 italic' : 'text-white drop-shadow-md'}
+                  `}>
+                    {transcript || "Speak now..."}
+                  </p>
+                )}
+              </div>
+              
+              {/* Hints */}
+              {!isProcessing && !error && (
+                <div className="mt-6 flex flex-col items-center gap-2 animate-fade-in">
+                  <div className="flex items-center gap-2 text-indigo-300/60 text-xs">
+                    <Info className="w-3 h-3" />
+                    <span>Say multiple expenses at once!</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 italic">
+                    "Breakfast 200, Taxi 300, and Groceries 1500"
+                  </p>
+                </div>
+              )}
+
+              {/* Bottom Cancel (Redundant but good for UX) */}
+              {isListening && (
+                <div className="mt-8 pt-6 border-t border-white/5 flex justify-center">
+                   <button 
+                     onClick={handleCancel}
+                     className="px-6 py-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 text-sm font-semibold transition-colors border border-white/5 hover:border-white/20 flex items-center gap-2 group"
+                   >
+                     <X className="w-4 h-4 group-hover:text-rose-400 transition-colors" /> Stop Recording
+                   </button>
+                </div>
+              )}
+              
             </div>
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Recording...
-            </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Say your expenses. You can say multiple!
-          </p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            Click the mic to save or Cancel to discard
-          </p>
-        </div>
-      )}
-
-      {/* Processing Indicator */}
-      {isProcessing && transcript && (
-        <div className="fixed bottom-24 right-6 md:bottom-28 md:right-8 bg-white dark:bg-slate-800 rounded-lg shadow-xl p-4 z-[9998] animate-fade-in max-w-xs">
-          <div className="flex items-center gap-2 mb-2">
-            <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Processing...
-            </span>
-          </div>
-          <p className="text-xs text-slate-600 dark:text-slate-400 italic">
-            "{transcript}"
-          </p>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="fixed bottom-24 right-6 md:bottom-28 md:right-8 bg-red-500 text-white rounded-lg shadow-xl p-4 z-[9998] animate-fade-in max-w-xs">
-          <p className="text-sm font-medium">{error}</p>
-          <button
-            onClick={() => setError('')}
-            className="text-xs underline mt-2 hover:text-red-100"
-          >
-            Dismiss
-          </button>
         </div>
       )}
     </>
