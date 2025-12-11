@@ -6,6 +6,7 @@ const SplitwiseIntegration: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [justConnected, setJustConnected] = useState(false);
   const token = localStorage.getItem("token");
 
   const loadProfile = async () => {
@@ -26,6 +27,19 @@ const SplitwiseIntegration: React.FC = () => {
 
   useEffect(() => {
     loadProfile();
+    
+    // Check if we just came back from OAuth
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('connected')) {
+      setJustConnected(true);
+      // Reload profile after a short delay to ensure backend has saved data
+      setTimeout(() => {
+        loadProfile();
+        setJustConnected(false);
+      }, 2000);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const connectSplitwise = async () => {
@@ -95,6 +109,15 @@ const SplitwiseIntegration: React.FC = () => {
           as a pending expense, categorized using your own categories.
         </p>
       </div>
+
+      {justConnected && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 flex-shrink-0" />
+          <p>
+            ✔ Successfully connected to Splitwise! Loading your account details...
+          </p>
+        </div>
+      )}
 
       <div className="glass-card p-6 rounded-2xl border space-y-4">
         {loading ? (

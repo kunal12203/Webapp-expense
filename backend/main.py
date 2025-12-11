@@ -855,8 +855,8 @@ def splitwise_callback(code: str, state: str, db: Session = Depends(get_db)):
     except Exception as e:
         print("Initial sync failed:", e)
 
-    # Redirect back to frontend
-    final_url = f"{FRONTEND_URL}/splitwise"
+    # Redirect back to frontend with success indicator
+    final_url = f"{FRONTEND_URL}/splitwise?connected=true"
     return RedirectResponse(url=final_url)
 
 
