@@ -133,7 +133,7 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         throw new Error(errorMsg);
       }
 
-      // Backend already creates pending transaction!
+      // Backend already creates expense directly!
       if (data.success && data.amount) {
         // Show success message
         showSuccessMessage(data);
@@ -146,8 +146,8 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
           onTransactionCreated();
         }
         
-        // Dispatch event to refresh pending transactions
-        window.dispatchEvent(new Event('pendingTransactionsUpdated'));
+        // Dispatch event to refresh expenses (not pending)
+        window.dispatchEvent(new Event('expensesUpdated'));
       } else if (data.error) {
         setError(data.error);
       } else {
@@ -162,15 +162,36 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
 
   const showSuccessMessage = (transaction: any) => {
     const successMsg = document.createElement('div');
-    successMsg.className = 'fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] animate-fade-in';
-    successMsg.innerHTML = `
-      <div class="flex items-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>Added: ₹${transaction.amount} - ${transaction.description}</span>
-      </div>
-    `;
+    successMsg.className = 'fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] animate-fade-in max-w-sm';
+    
+    // Check if multiple transactions
+    const count = transaction.category?.includes('transactions') 
+      ? parseInt(transaction.category) 
+      : 1;
+    
+    if (count > 1) {
+      successMsg.innerHTML = `
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <div>
+            <div class="font-semibold">Added ${count} transactions</div>
+            <div class="text-sm opacity-90">Total: ₹${transaction.amount}</div>
+          </div>
+        </div>
+      `;
+    } else {
+      successMsg.innerHTML = `
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <span>Added: ₹${transaction.amount} - ${transaction.description}</span>
+        </div>
+      `;
+    }
+    
     document.body.appendChild(successMsg);
     setTimeout(() => successMsg.remove(), 3000);
   };
@@ -245,9 +266,24 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         )}
       </button>
 
+      {/* Cancel Button - Shows only when listening */}
+      {isListening && (
+        <button
+          onClick={() => {
+            recognitionRef.current?.stop();
+            setIsListening(false);
+            setTranscript('');
+            transcriptRef.current = '';
+          }}
+          className="fixed z-[9999] bottom-24 right-6 md:bottom-28 md:right-8 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-full shadow-xl transition-all animate-fade-in"
+        >
+          Cancel
+        </button>
+      )}
+
       {/* Listening Indicator */}
       {isListening && (
-        <div className="fixed bottom-24 right-6 md:bottom-28 md:right-8 bg-white dark:bg-slate-800 rounded-lg shadow-xl p-4 z-[9998] animate-fade-in">
+        <div className="fixed bottom-36 right-6 md:bottom-40 md:right-8 bg-white dark:bg-slate-800 rounded-lg shadow-xl p-4 z-[9998] animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="flex gap-1">
               <div className="w-1 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
@@ -255,11 +291,14 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
               <div className="w-1 h-6 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
             </div>
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Listening...
+              Recording...
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Say your expense (e.g., "I spent 500 on groceries")
+            Say your expenses. You can say multiple!
+          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            Click the mic to save or Cancel to discard
           </p>
         </div>
       )}

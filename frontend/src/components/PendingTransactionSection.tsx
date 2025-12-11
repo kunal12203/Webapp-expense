@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BellRing, Check, X, Loader2, Edit2, ArrowRight } from "lucide-react";
+import { BellRing, Check, X, Loader2, Edit2, ArrowRight, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getPendingTransactions, confirmPendingTransaction, cancelPendingTransaction } from "../config/api";
 
@@ -8,6 +8,8 @@ const PendingTransactionSection = ({ onUpdate, showAll = false }: any) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const loadPending = async () => {
     setLoading(true);
@@ -40,63 +42,153 @@ const PendingTransactionSection = ({ onUpdate, showAll = false }: any) => {
     navigate(`/add-expense/${tx.token}`);
   };
 
+  const toggleSelect = (id: number) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === displayTransactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(displayTransactions.map((tx: any) => tx.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    if (!confirm(`Delete ${selectedIds.size} pending transaction(s)?`)) return;
+    
+    setBulkDeleting(true);
+    try {
+      const selectedTransactions = transactions.filter((tx: any) => selectedIds.has(tx.id));
+      await Promise.all(
+        selectedTransactions.map((tx: any) => cancelPendingTransaction(tx.token))
+      );
+      setSelectedIds(new Set());
+      loadPending();
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete some transactions');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   if (!loading && transactions.length === 0) return null;
 
   // Limit to 3 on dashboard
   const displayTransactions = showAll ? transactions : transactions.slice(0, 3);
+  const isAllSelected = displayTransactions.length > 0 && selectedIds.size === displayTransactions.length;
 
   return (
     <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-3xl p-6 relative overflow-hidden">
-      <div className="flex items-center gap-3 mb-4 relative z-10">
-        <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-xl text-amber-600 dark:text-amber-400">
-          <BellRing className="w-5 h-5 animate-pulse" />
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className="flex items-center gap-3">
+          <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-xl text-amber-600 dark:text-amber-400">
+            <BellRing className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-800 dark:text-white">Action Required</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {selectedIds.size > 0 
+                ? `${selectedIds.size} selected` 
+                : `${transactions.length} pending approvals`}
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="font-bold text-slate-800 dark:text-white">Action Required</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">You have {transactions.length} pending approvals</p>
-        </div>
+
+        {/* Bulk Actions - Only show when showAll is true (on pending page) */}
+        {showAll && transactions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 px-3 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+            >
+              {isAllSelected ? 'Deselect All' : 'Select All'}
+            </button>
+            
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bulkDeleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                Delete {selectedIds.size}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 relative z-10">
         {displayTransactions.map((tx: any) => (
           <div key={tx.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-amber-100 dark:border-amber-800/30">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <span className="text-lg font-bold text-slate-900 dark:text-white">₹{tx.amount}</span>
-                <p className="text-xs text-slate-500">{tx.description}</p>
-                <span className="inline-block mt-1 text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
-                  {tx.category}
-                </span>
-              </div>
-              <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-500">
-                {tx.date}
-              </span>
-            </div>
+            <div className="flex gap-3">
+              {/* Checkbox - Only show on full pending page */}
+              {showAll && (
+                <div className="flex items-start pt-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(tx.id)}
+                    onChange={() => toggleSelect(tx.id)}
+                    className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer"
+                  />
+                </div>
+              )}
 
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handleAction(tx, 'approve')}
-                disabled={processingId === tx.id}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {processingId === tx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                Confirm
-              </button>
-              <button
-                onClick={() => handleEdit(tx)}
-                disabled={processingId === tx.id}
-                className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Edit2 className="w-3 h-3" />
-                Edit
-              </button>
-              <button
-                onClick={() => handleAction(tx, 'cancel')}
-                disabled={processingId === tx.id}
-                className="bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <X className="w-3 h-3" /> Delete
-              </button>
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <span className="text-lg font-bold text-slate-900 dark:text-white">₹{tx.amount}</span>
+                    <p className="text-xs text-slate-500">{tx.description}</p>
+                    <span className="inline-block mt-1 text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                      {tx.category}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-500">
+                    {tx.date}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleAction(tx, 'approve')}
+                    disabled={processingId === tx.id}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingId === tx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => handleEdit(tx)}
+                    disabled={processingId === tx.id}
+                    className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleAction(tx, 'cancel')}
+                    disabled={processingId === tx.id}
+                    className="bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-rose-900/20 dark:hover:text-rose-400 dark:hover:border-rose-800 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="w-3 h-3" /> Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ))}
