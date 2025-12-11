@@ -266,6 +266,10 @@ class UserProfileResponse(BaseModel):
     onboarding_completed: bool
     created_at: Optional[datetime]
     
+    # Splitwise integration fields
+    splitwise_user_id: Optional[int] = None
+    splitwise_last_sync_at: Optional[datetime] = None
+    
     class Config:
         from_attributes = True
 
@@ -608,24 +612,33 @@ def get_splitwise_auth_header(user: User, db: Session) -> dict:
       raise HTTPException(status_code=400, detail="Splitwise not connected")
 
   # refresh if expired
-  if user.splitwise_token_expires_at and user.splitwise_token_expires_at < datetime.utcnow():
-      token_url = f"{SPLITWISE_BASE_URL}/oauth/token"
-      data = {
-          "grant_type": "refresh_token",
-          "refresh_token": user.splitwise_refresh_token,
-          "client_id": SPLITWISE_CLIENT_ID,
-          "client_secret": SPLITWISE_CLIENT_SECRET,
-      }
-      resp = requests.post(token_url, data=data)
-      if resp.status_code != 200:
-          raise HTTPException(status_code=400, detail="Failed to refresh Splitwise token")
+  if user.splitwise_token_expires_at:
+      now = datetime.utcnow()
+      # Handle both timezone-aware and naive datetimes
+      expires_at = user.splitwise_token_expires_at
+      if hasattr(expires_at, 'tzinfo') and expires_at.tzinfo is not None:
+          # expires_at is timezone-aware, make now timezone-aware too
+          from datetime import timezone
+          now = datetime.now(timezone.utc)
+      
+      if expires_at < now:
+          token_url = f"{SPLITWISE_BASE_URL}/oauth/token"
+          data = {
+              "grant_type": "refresh_token",
+              "refresh_token": user.splitwise_refresh_token,
+              "client_id": SPLITWISE_CLIENT_ID,
+              "client_secret": SPLITWISE_CLIENT_SECRET,
+          }
+          resp = requests.post(token_url, data=data)
+          if resp.status_code != 200:
+              raise HTTPException(status_code=400, detail="Failed to refresh Splitwise token")
 
-      tokens = resp.json()
-      user.splitwise_access_token = tokens["access_token"]
-      user.splitwise_refresh_token = tokens.get("refresh_token", user.splitwise_refresh_token)
-      expires_in = tokens.get("expires_in", 3600)
-      user.splitwise_token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-      db.commit()
+          tokens = resp.json()
+          user.splitwise_access_token = tokens["access_token"]
+          user.splitwise_refresh_token = tokens.get("refresh_token", user.splitwise_refresh_token)
+          expires_in = tokens.get("expires_in", 3600)
+          user.splitwise_token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+          db.commit()
 
   return {"Authorization": f"Bearer {user.splitwise_access_token}"}
 
@@ -882,8 +895,12 @@ def splitwise_callback(code: str, state: str, db: Session = Depends(get_db)):
         me_data = me_resp.json()
         sw_user = me_data.get("user") or {}
         user.splitwise_user_id = sw_user.get("id")
+        print(f"✅ Splitwise User ID saved: {user.splitwise_user_id}")
+    else:
+        print(f"⚠️  Failed to get Splitwise user ID: {me_resp.status_code}")
 
     db.commit()
+    print(f"✅ Tokens saved to database for user: {user.username}")
 
     # Auto-sync today's expenses once after connect
     try:
@@ -1860,7 +1877,9 @@ def get_profile(
         occupation=current_user.occupation,
         monthly_budget=current_user.monthly_budget,
         onboarding_completed=current_user.onboarding_completed or False,
-        created_at=current_user.created_at if hasattr(current_user, 'created_at') else None
+        created_at=current_user.created_at if hasattr(current_user, 'created_at') else None,
+        splitwise_user_id=current_user.splitwise_user_id,
+        splitwise_last_sync_at=current_user.splitwise_last_sync_at
     )
 
 @app.put("/api/profile", response_model=UserProfileResponse)
@@ -1893,7 +1912,9 @@ def update_profile(
         occupation=current_user.occupation,
         monthly_budget=current_user.monthly_budget,
         onboarding_completed=current_user.onboarding_completed or False,
-        created_at=current_user.created_at if hasattr(current_user, 'created_at') else None
+        created_at=current_user.created_at if hasattr(current_user, 'created_at') else None,
+        splitwise_user_id=current_user.splitwise_user_id,
+        splitwise_last_sync_at=current_user.splitwise_last_sync_at
     )
 
 @app.post("/api/profile/complete-onboarding")
