@@ -816,7 +816,7 @@ def sync_all_user(
     imported = sync_splitwise_for_user(db, current_user, mode="all")
     return {"imported": imported}
 
-@app.post("/api/splitwise/sync-all")
+@app.api_route("/api/splitwise/sync-all", methods=["GET", "POST"])
 def sync_all(secret: str, db: Session = Depends(get_db)):
     if secret != CRON_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
