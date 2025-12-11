@@ -42,6 +42,14 @@ const SplitwiseIntegration: React.FC = () => {
     }
   }, []);
 
+  // Auto-sync today's expenses when page loads (if connected)
+  useEffect(() => {
+    if (profile?.splitwise_user_id && !justConnected) {
+      // Auto-sync silently in background when user opens page
+      syncToday();
+    }
+  }, [profile?.splitwise_user_id]);
+
   const connectSplitwise = async () => {
     try {
       const res = await fetch(API_ENDPOINTS.splitwiseAuthUrl, {
@@ -131,7 +139,6 @@ const SplitwiseIntegration: React.FC = () => {
               <CheckCircle className="text-green-500 w-6 h-6" />
               <div>
                 <h2 className="text-xl font-semibold">Connected to Splitwise</h2>
-                
               </div>
             </div>
 
@@ -196,7 +203,7 @@ const SplitwiseIntegration: React.FC = () => {
         )}
       </div>
 
-      
+    
     </div>
   );
 };
