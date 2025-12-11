@@ -76,11 +76,12 @@ const Layout = () => {
         fixed inset-y-0 left-0 z-40 w-64 sm:w-72 bg-slate-50/50 dark:bg-[#0b1120]/50 backdrop-blur-xl border-r border-white/20 dark:border-slate-800
         transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:pt-0 pt-16
       `}
       >
         <div className="flex flex-col h-full p-4 sm:p-6 safe-area-inset">
-          {/* Logo */}
-          <div className="hidden lg:flex items-center gap-3 mb-8 lg:mb-10 px-2">
+          {/* Logo - show on mobile when menu is open */}
+          <div className={`flex lg:flex items-center gap-3 mb-6 lg:mb-10 px-2 ${isMobileMenuOpen ? '' : 'hidden lg:flex'}`}>
             <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-2.5 sm:p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
               <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
