@@ -21,21 +21,22 @@ from email.mime.multipart import MIMEMultipart
 import io
 import csv
 
+# Load environment variables FIRST before importing custom modules
+load_dotenv()
+
 from fastapi import APIRouter
 import requests
 from urllib.parse import urlencode
 
-# Import SMS parser router
+# Import SMS parser router (after load_dotenv!)
 from sms_parser_api import router as sms_router
 
-# Import voice transaction router
+# Import voice transaction router (after load_dotenv!)
 from voice_transaction_api import router as voice_router
 
 import json
 
 from fastapi.responses import RedirectResponse
-# Load environment variables
-load_dotenv()
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-PLEASE")

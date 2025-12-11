@@ -31,23 +31,25 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
 
     recognition.onresult = (event: any) => {
       const text = event.results[0][0].transcript;
+      console.log('🎤 Speech recognized:', text);
       setTranscript(text);
       handleTranscript(text);
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
+      console.error('❌ Speech recognition error:', event.error);
       setIsListening(false);
       if (event.error === 'no-speech') {
         setError('No speech detected. Please try again.');
       } else if (event.error === 'not-allowed') {
         setError('Microphone access denied. Please allow microphone access.');
       } else {
-        setError('Speech recognition error. Please try again.');
+        setError(`Speech recognition error: ${event.error}`);
       }
     };
 
     recognition.onend = () => {
+      console.log('🛑 Speech recognition ended');
       setIsListening(false);
     };
 
@@ -61,11 +63,14 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
   }, []);
 
   const handleTranscript = async (text: string) => {
+    console.log('📝 Processing transcript:', text);
     setIsProcessing(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
+      console.log('🔑 Token exists:', !!token);
+      console.log('🌐 Calling API:', API_ENDPOINTS.voiceParseTransaction);
       
       const response = await fetch(API_ENDPOINTS.voiceParseTransaction, {
         method: 'POST',
@@ -76,7 +81,10 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         body: JSON.stringify({ text })
       });
 
+      console.log('📡 Response status:', response.status, response.statusText);
+      
       const data = await response.json();
+      console.log('📦 Response data:', data);
 
       if (!response.ok) {
         // Handle different error formats
@@ -88,11 +96,13 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         } else if (data.detail) {
           errorMsg = JSON.stringify(data.detail);
         }
+        console.error('❌ API Error:', errorMsg);
         throw new Error(errorMsg);
       }
 
       // Backend already creates pending transaction!
       if (data.success && data.amount) {
+        console.log('✅ Transaction successful!', data);
         // Show success message
         showSuccessMessage(data);
         
@@ -107,14 +117,17 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
         // Dispatch event to refresh pending transactions
         window.dispatchEvent(new Event('pendingTransactionsUpdated'));
       } else if (data.error) {
+        console.error('⚠️ API returned error:', data.error);
         setError(data.error);
       } else {
+        console.warn('⚠️ Unexpected response:', data);
         setError('Could not understand the transaction. Please try again.');
       }
     } catch (err: any) {
-      console.error('Error processing voice:', err);
+      console.error('💥 Error processing voice:', err);
       setError(err.message || 'Failed to process voice input');
     } finally {
+      console.log('🏁 Processing complete');
       setIsProcessing(false);
     }
   };
@@ -135,19 +148,30 @@ const VoiceTransactionButton: React.FC<VoiceTransactionButtonProps> = ({ onTrans
   };
 
   const toggleListening = () => {
+    console.log('🎙️ Toggle listening, current state:', isListening);
+    
     if (!recognitionRef.current) {
+      console.error('❌ Recognition not available');
       setError('Speech recognition not available');
       return;
     }
 
     if (isListening) {
+      console.log('⏹️ Stopping recognition');
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
+      console.log('▶️ Starting recognition');
       setError('');
       setTranscript('');
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        console.log('✅ Recognition started');
+      } catch (err) {
+        console.error('❌ Failed to start recognition:', err);
+        setError('Failed to start microphone');
+      }
     }
   };
 
