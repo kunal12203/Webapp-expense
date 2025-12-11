@@ -132,7 +132,9 @@ Voice Input: "{request.text}"
 User's Categories: {', '.join(category_names)}
 Today's Date: {today_date}
 
-Extract and return ONLY a JSON object with these fields:
+IMPORTANT: The user may mention MULTIPLE transactions in one recording. Extract ALL of them.
+
+Return a JSON array of transaction objects. Each transaction must have these fields:
 - amount (number): The transaction amount
 - category (string): Best matching category from user's list
 - description (string): Brief description in English (2-5 words)
@@ -144,16 +146,26 @@ Extract and return ONLY a JSON object with these fields:
 - type (string): "expense" or "income"
 
 Examples:
+
+Single transaction:
 Input: "I spent 500 rupees on groceries"
-Output: {{"amount": 500, "category": "Food", "description": "Groceries", "date": "{today_date}", "type": "expense"}}
+Output: [{{"amount": 500, "category": "Food", "description": "Groceries", "date": "{today_date}", "type": "expense"}}]
 
-Input: "Maine kal 200 ka petrol bharwaya"
-Output: {{"amount": 200, "category": "Transport", "description": "Petrol", "date": "{(datetime.now().date() - timedelta(days=1)).isoformat()}", "type": "expense"}}
+Multiple transactions:
+Input: "I spent 200 on petrol, 150 on chai, and 1500 on electricity bill yesterday"
+Output: [
+  {{"amount": 200, "category": "Transport", "description": "Petrol", "date": "{today_date}", "type": "expense"}},
+  {{"amount": 150, "category": "Food", "description": "Chai", "date": "{today_date}", "type": "expense"}},
+  {{"amount": 1500, "category": "Bills", "description": "Electricity bill", "date": "{(datetime.now().date() - timedelta(days=1)).isoformat()}", "type": "expense"}}
+]
 
-Input: "Paid 1500 for electricity bill yesterday"
-Output: {{"amount": 1500, "category": "Bills", "description": "Electricity bill", "date": "{(datetime.now().date() - timedelta(days=1)).isoformat()}", "type": "expense"}}
+Input: "Maine kal 300 ka lunch kiya aur 100 ka parking"
+Output: [
+  {{"amount": 300, "category": "Food", "description": "Lunch", "date": "{(datetime.now().date() - timedelta(days=1)).isoformat()}", "type": "expense"}},
+  {{"amount": 100, "category": "Transport", "description": "Parking", "date": "{(datetime.now().date() - timedelta(days=1)).isoformat()}", "type": "expense"}}
+]
 
-Return ONLY the JSON object, no other text."""
+Return ONLY the JSON array, no other text."""
 
     try:
         # Call Claude Haiku 4.5 (correct model name)
@@ -173,75 +185,91 @@ Return ONLY the JSON object, no other text."""
                 response_text = response_text[4:]
         response_text = response_text.strip()
         
-        # Parse JSON response
-        transaction_data = json.loads(response_text)
+        # Parse JSON response (now expects an array)
+        transactions_data = json.loads(response_text)
         
-        # Validate and normalize data - handle None values properly
-        amount_raw = transaction_data.get("amount")
+        # Ensure it's a list
+        if not isinstance(transactions_data, list):
+            # If single object returned, wrap in array
+            transactions_data = [transactions_data]
         
-        # Check if amount is None or invalid
-        if amount_raw is None or amount_raw == "":
+        if not transactions_data:
             return VoiceTransactionResponse(
                 success=False,
-                error="Could not detect amount in your input. Please say the amount clearly, for example: 'I spent 500 rupees on groceries'"
+                error="No transactions detected. Please try again."
             )
         
-        try:
-            amount = float(amount_raw)
-        except (ValueError, TypeError):
+        # Process all transactions
+        from main import Expense
+        created_expenses = []
+        
+        for idx, transaction_data in enumerate(transactions_data):
+            # Validate and normalize data - handle None values properly
+            amount_raw = transaction_data.get("amount")
+            
+            # Check if amount is None or invalid
+            if amount_raw is None or amount_raw == "":
+                continue  # Skip invalid transactions
+            
+            try:
+                amount = float(amount_raw)
+            except (ValueError, TypeError):
+                continue  # Skip invalid amounts
+            
+            category = transaction_data.get("category") or "Other"
+            description = transaction_data.get("description") or f"Voice transaction {idx+1}"
+            date_str = transaction_data.get("date") or today_date
+            trans_type = transaction_data.get("type") or "expense"
+            
+            # Validate amount is positive
+            if amount <= 0:
+                continue
+            
+            # Ensure category is in user's list
+            if category not in category_names:
+                # Find closest match or use "Other"
+                category = "Other" if "Other" in category_names else category_names[0]
+            
+            # Validate date format
+            date_str = parse_relative_date(date_str)
+            
+            # Create actual transaction directly
+            expense = Expense(
+                user_id=current_user.id,
+                amount=amount,
+                description=description,
+                category=category,
+                date=date_str,
+                type=trans_type,
+            )
+            
+            db.add(expense)
+            created_expenses.append({
+                "amount": amount,
+                "category": category,
+                "description": description,
+                "date": date_str,
+                "type": trans_type
+            })
+        
+        # Commit all transactions at once
+        if created_expenses:
+            db.commit()
+            
+            # Return summary of all created transactions
+            return VoiceTransactionResponse(
+                success=True,
+                amount=sum(t["amount"] for t in created_expenses),  # Total amount
+                category=f"{len(created_expenses)} transactions",  # Count
+                description=", ".join(t["description"] for t in created_expenses),  # All descriptions
+                date=today_date,
+                type="expense"
+            )
+        else:
             return VoiceTransactionResponse(
                 success=False,
-                error="Could not understand the amount. Please try again with a clear number."
+                error="Could not process any valid transactions. Please try again."
             )
-        
-        category = transaction_data.get("category") or "Other"
-        description = transaction_data.get("description") or "Voice transaction"
-        date_str = transaction_data.get("date") or today_date
-        trans_type = transaction_data.get("type") or "expense"
-        
-        # Validate amount is positive
-        if amount <= 0:
-            return VoiceTransactionResponse(
-                success=False,
-                error="Amount must be greater than zero. Please try again."
-            )
-        
-        # Ensure category is in user's list
-        if category not in category_names:
-            # Find closest match or use "Other"
-            category = "Other" if "Other" in category_names else category_names[0]
-        
-        # Validate date format
-        date_str = parse_relative_date(date_str)
-        
-        # Create pending transaction in database
-        from main import PendingTransaction
-        from secrets import token_urlsafe
-        
-        pending = PendingTransaction(
-            user_id=current_user.id,
-            token=token_urlsafe(16),
-            amount=amount,
-            description=description,
-            category=category,
-            date=date_str,
-            type=trans_type,
-            status="pending",
-            # No splitwise fields for voice transactions
-        )
-        
-        db.add(pending)
-        db.commit()
-        db.refresh(pending)
-        
-        return VoiceTransactionResponse(
-            success=True,
-            amount=amount,
-            category=category,
-            description=description,
-            date=date_str,
-            type=trans_type
-        )
         
     except json.JSONDecodeError as e:
         return VoiceTransactionResponse(
