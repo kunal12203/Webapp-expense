@@ -1160,11 +1160,32 @@ async def user_sms_parse(
     {
         "success": true,
         "url": "https://webapp-expense.vercel.app/add-expense/{token}",
-        "parsed_data": {...}
+        "parsed_data": {...},
+        "already_processed": false
     }
     """
     from sms_parser_api import parse_sms_with_claude
     import secrets
+    
+    # Create hash of SMS to check for duplicates
+    sms_hash = hashlib.sha256(sms.encode()).hexdigest()
+    
+    # Check if this SMS has already been processed in last 24 hours
+    one_day_ago = datetime.now() - timedelta(days=1)
+    existing = db.query(PendingTransaction).filter(
+        PendingTransaction.user_id == current_user.id,
+        PendingTransaction.description.contains(sms_hash[:16]),  # Store partial hash in description
+        PendingTransaction.created_at >= one_day_ago
+    ).first()
+    
+    if existing:
+        # SMS already processed - return redirect to dashboard
+        return {
+            "success": True,
+            "url": f"{FRONTEND_URL}/",  # Redirect to dashboard
+            "already_processed": True,
+            "message": "This SMS was already processed"
+        }
     
     # Parse SMS using Claude AI
     parse_result = parse_sms_with_claude(sms)
@@ -1174,11 +1195,15 @@ async def user_sms_parse(
     
     data = parse_result["data"]
     
+    # Create description with hash for deduplication
+    original_description = data.get("merchant", "Unknown")
+    description_with_hash = f"{original_description} [#{sms_hash[:16]}]"
+    
     # Create pending transaction
     pending = PendingTransaction(
         user_id=current_user.id,
         amount=data.get("amount"),
-        description=data.get("merchant", "Unknown"),
+        description=description_with_hash,  # Include hash for dedup
         category=data.get("category", "Other"),
         date=data.get("date", datetime.now().strftime("%Y-%m-%d")),
         type="income" if data.get("transaction_type") == "credit" else "expense",
@@ -1195,7 +1220,8 @@ async def user_sms_parse(
         "success": True,
         "url": expense_url,
         "parsed_data": data,
-        "confidence": data.get("confidence", 0.5)
+        "confidence": data.get("confidence", 0.5),
+        "already_processed": False
     }
 
 # ==========================================

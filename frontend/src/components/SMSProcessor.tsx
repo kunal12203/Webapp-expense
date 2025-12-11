@@ -46,6 +46,14 @@ const SMSProcessor = () => {
 
         const data = await response.json();
         
+        // Check if SMS was already processed
+        if (data.already_processed) {
+          // Store token and redirect to dashboard
+          sessionStorage.setItem("temp_auth_token", urlToken);
+          navigate("/", { replace: true });
+          return;
+        }
+        
         // Extract token from the returned URL
         const urlParts = data.url.split("/");
         const pendingToken = urlParts[urlParts.length - 1];
@@ -54,7 +62,7 @@ const SMSProcessor = () => {
         sessionStorage.setItem("temp_auth_token", urlToken);
 
         // Redirect to confirmation page
-        navigate(`/add-expense/${pendingToken}`);
+        navigate(`/add-expense/${pendingToken}`, { replace: true });
       } catch (err: any) {
         setError(err.message || "Failed to process SMS");
         setProcessing(false);
