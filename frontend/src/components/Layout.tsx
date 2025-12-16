@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, User, LogOut, Wallet, 
-  PieChart, Settings, Menu, X, Receipt, Clock, Zap
+  PieChart, Settings, Menu, X, Receipt, Clock, Zap, Download
 } from 'lucide-react';
 import { Users } from "lucide-react";
 import VoiceTransactionButton from './VoiceTransactionButton';
+import PWAInstallPrompt from './PWAInstallPrompt';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -135,6 +136,36 @@ const Layout = () => {
             </NavLink>
 
             <NavItem to="/profile" icon={User} label="Profile" />
+
+            {/* Install App Button - Special styling */}
+            <NavLink
+              to="/install-app"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
+                location.pathname === "/install-app"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-xl shadow-emerald-500/30"
+                  : "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 text-emerald-700 dark:text-emerald-400 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-900/30 dark:hover:to-teal-900/30"
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <Download
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    location.pathname === "/install-app"
+                      ? "scale-110"
+                      : "group-hover:scale-110"
+                  }`}
+                />
+                <span className="font-semibold tracking-wide">Install App</span>
+              </div>
+
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/30 backdrop-blur-sm">
+                📱
+              </span>
+
+              {location.pathname === "/install-app" && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] animate-shimmer" />
+              )}
+            </NavLink>
           </nav>
 
           {/* Logout */}
@@ -167,6 +198,9 @@ const Layout = () => {
 
       {/* Global Voice Transaction Button - Shows on all pages */}
       <VoiceTransactionButton />
+      
+      {/* PWA Install Prompt - Shows install banner */}
+      <PWAInstallPrompt />
     </div>
   );
 };

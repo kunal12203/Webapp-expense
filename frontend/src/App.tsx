@@ -14,6 +14,7 @@ import AllTransactions from "./components/AllTransaction";
 import AllPendingTransactions from "./components/AllPendingTransaction";
 import AutomationGuide from "./components/AutomationGuide";
 import UpdateShortcutURL from "./components/UpdateShortcutURL";
+import InstallAppPage from "./pages/InstallAppPage";
 import Layout from "./components/Layout";
 import { API_ENDPOINTS } from "./config/api";
 import { Loader2 } from "lucide-react";
@@ -84,6 +85,7 @@ const App = () => {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/analytics" element={<Dashboard />} /> {/* Reuse dashboard for now */}
           <Route path="/splitwise" element={<SplitwiseIntegration />} />
+          <Route path="/install-app" element={<InstallAppPage />} />
         </Route>
 
         {/* Onboarding Standalone */}
