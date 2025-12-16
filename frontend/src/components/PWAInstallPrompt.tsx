@@ -12,7 +12,7 @@ import { Download, X, Smartphone } from 'lucide-react';
  * - Auto-appears after 30 seconds on first visit
  */
 const PWAInstallPrompt = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -25,7 +25,7 @@ const PWAInstallPrompt = () => {
     }
 
     // Detect iOS devices
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
     // Check if user already dismissed the prompt
@@ -47,7 +47,7 @@ const PWAInstallPrompt = () => {
     }
 
     // For Android/Desktop - listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e) => {
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       

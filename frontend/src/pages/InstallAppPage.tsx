@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, Smartphone, Monitor, Check, Zap, Wifi, RefreshCw } from 'lucide-react';
 
 const InstallAppPage = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isMac, setIsMac] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -16,7 +16,7 @@ const InstallAppPage = () => {
 
     // Detect platform
     const userAgent = navigator.userAgent;
-    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
     const isMacDevice = /Macintosh|MacIntel|MacPPC|Mac68K/.test(userAgent);
     
     setIsIOS(isIOSDevice);
@@ -35,7 +35,7 @@ const InstallAppPage = () => {
     }
 
     // Listen for install prompt
-    const handleBeforeInstallPrompt = (e) => {
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
