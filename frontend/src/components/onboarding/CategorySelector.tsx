@@ -49,7 +49,17 @@ const CategorySelector = () => {
 
     setSaving(false);
 
-    window.location.href = "/onboarding/shortcut";
+    // Check if iOS device
+    const userAgent = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+
+    // Only show shortcut setup for iOS users
+    if (isIOS) {
+      window.location.href = "/onboarding/shortcut";
+    } else {
+      // Non-iOS users go directly to dashboard
+      window.location.href = "/";
+    }
   };
 
   return (

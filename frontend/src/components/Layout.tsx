@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, User, LogOut, Wallet, 
@@ -12,6 +12,14 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+
+  // Detect iOS on component mount
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+  }, []);
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to sign out?')) {
@@ -102,7 +110,12 @@ const Layout = () => {
             <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
             <NavItem to="/transactions" icon={Receipt} label="Transactions" />
             <NavItem to="/pending" icon={Clock} label="Pending" />
-            <NavItem to="/automation-guide" icon={Zap} label="Automation" />
+            
+            {/* Automation - Only show on iOS devices */}
+            {isIOS && (
+              <NavItem to="/automation-guide" icon={Zap} label="Automation" />
+            )}
+            
             <NavItem to="/analytics" icon={PieChart} label="Analytics" />
 
             {/* Splitwise with NEW badge */}
