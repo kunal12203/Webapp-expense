@@ -6,6 +6,7 @@ import IOSShortcutButton from "../onboarding/IosShortcutButton";
 const ProfilePage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -14,6 +15,11 @@ const ProfilePage = () => {
       setProfile(await res.json());
     };
     load();
+
+    // Detect iOS device
+    const userAgent = navigator.userAgent;
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
   }, []);
 
   const update = async () => {
@@ -95,10 +101,12 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* iOS Shortcut Integration */}
-      <div className="glass-card p-8 md:p-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <IOSShortcutButton standalone={true} />
-      </div>
+      {/* iOS Shortcut Integration - Only show on iOS devices */}
+      {isIOS && (
+        <div className="glass-card p-8 md:p-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <IOSShortcutButton standalone={true} />
+        </div>
+      )}
     </div>
   );
 };
