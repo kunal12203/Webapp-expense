@@ -16,6 +16,7 @@ import AutomationGuide from "./components/AutomationGuide";
 import UpdateShortcutURL from "./components/UpdateShortcutURL";
 import InstallAppPage from "./pages/InstallAppPage";
 import Layout from "./components/Layout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { API_ENDPOINTS } from "./config/api";
 import { Loader2 } from "lucide-react";
 import SplitwiseIntegration from "./components/SplitwiseIntegration";
@@ -63,40 +64,42 @@ const App = () => {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/add-expense-from-sms" element={<SMSProcessor />} />
-        <Route path="/add-expense/:token" element={<PendingTransactionModal />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/add-expense-from-sms" element={<SMSProcessor />} />
+          <Route path="/add-expense/:token" element={<PendingTransactionModal />} />
 
-        {/* Protected Dashboard Routes */}
-        <Route element={<Protected><Layout /></Protected>}>
-          <Route path="/" element={
-            onboardingRequired ? <Navigate to="/onboarding/categories" /> : <Dashboard />
+          {/* Protected Dashboard Routes */}
+          <Route element={<Protected><Layout /></Protected>}>
+            <Route path="/" element={
+              onboardingRequired ? <Navigate to="/onboarding/categories" /> : <Dashboard />
+            } />
+            <Route path="/transactions" element={<AllTransactions />} />
+            <Route path="/pending" element={<AllPendingTransactions />} />
+            <Route path="/automation-guide" element={<AutomationGuide />} />
+            <Route path="/update-shortcut" element={<UpdateShortcutURL />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/analytics" element={<Dashboard />} /> {/* Reuse dashboard for now */}
+            <Route path="/splitwise" element={<SplitwiseIntegration />} />
+            <Route path="/install-app" element={<InstallAppPage />} />
+          </Route>
+
+          {/* Onboarding Standalone */}
+          <Route path="/onboarding/categories" element={
+            <Protected><CategorySelector /></Protected>
           } />
-          <Route path="/transactions" element={<AllTransactions />} />
-          <Route path="/pending" element={<AllPendingTransactions />} />
-          <Route path="/automation-guide" element={<AutomationGuide />} />
-          <Route path="/update-shortcut" element={<UpdateShortcutURL />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/analytics" element={<Dashboard />} /> {/* Reuse dashboard for now */}
-          <Route path="/splitwise" element={<SplitwiseIntegration />} />
-          <Route path="/install-app" element={<InstallAppPage />} />
-        </Route>
-
-        {/* Onboarding Standalone */}
-        <Route path="/onboarding/categories" element={
-          <Protected><CategorySelector /></Protected>
-        } />
-        <Route path="/onboarding/shortcut" element={
-          <Protected><ShortcutSetup /></Protected>
-        } />
-      </Routes>
-    </BrowserRouter>
+          <Route path="/onboarding/shortcut" element={
+            <Protected><ShortcutSetup /></Protected>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 
