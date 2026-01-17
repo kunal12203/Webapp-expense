@@ -1,0 +1,16 @@
+id,name,icon,color,description,sort_order
+1,Food & Dining,utensils,#FF6B6B,"Groceries, restaurants, takeout",1
+2,Transport,car,#4ECDC4,"Gas, public transit, ride-sharing",2
+3,Shopping,shopping-bag,#95E1D3,"Clothes, electronics, general",3
+4,Bills & Utilities,file-text,#FFE66D,"Rent, electricity, internet",4
+5,Entertainment,film,#A8E6CF,"Movies, games, subscriptions",5
+6,Health & Fitness,heart,#E91E63,"Doctor, gym, medicine",6
+7,Education,book,#2196F3,"Courses, books, tuition",7
+8,Personal Care,scissors,#9C27B0,"Haircut, spa, grooming",8
+9,Travel,plane,#FF9800,"Flights, hotels, vacation",9
+10,Investments,trending-up,#4CAF50,"Stocks, crypto, savings",10
+11,Insurance,shield,#607D8B,"Life, health, car insurance",11
+12,Gifts & Donations,gift,#F06292,"Presents, charity",12
+13,Home & Garden,home,#795548,"Furniture, repairs, plants",13
+14,Pets,heart,#FF5722,"Pet food, vet, supplies",14
+15,Income,dollar-sign,#4CAF50,"Salary, freelance, bonuses",15

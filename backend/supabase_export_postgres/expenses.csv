@@ -1,0 +1,47 @@
+id,user_id,amount,category,description,date,type
+1,3,1.0,Entertainment,Kk,2025-12-04,expense
+2,4,55.0,Food & Dining,M S SHREEJEE FO,2025-12-06,expense
+3,4,51.0,Other,Not specified,2025-12-06,expense
+4,4,102.0,Other,Not specified,2025-12-06,expense
+5,2,1.0,Gifts & Donations,pratham bhdwa,2025-12-08,expense
+6,2,141.0,Transport,ANURAG MISHRA auto,2025-12-08,expense
+7,2,134.0,Food & Dining,office,2025-12-08,expense
+8,2,32.0,Food & Dining,smosa office,2025-12-08,expense
+9,2,500.0,Home & Garden,MAMTA,2025-12-08,expense
+10,2,10.0,Transport,Maha Mumbai Metro Operation Corporation Limited,2025-12-08,expense
+11,2,44.0,Transport,Rapido,2025-12-09,expense
+12,2,39.0,Other,Compass,2025-12-09,expense
+13,2,92.0,Food & Dining,office lunch,2025-12-09,expense
+14,2,10.0,Transport,Maha Mumbai Metro Operation Corporation Limited,2025-12-09,expense
+15,2,389.0,Shopping,Zepto,2025-12-09,expense
+16,2,97.0,Transport,office half with shreyansh ,2025-12-10,expense
+17,2,134.0,Food,Compass India Food Services Private Limited,2025-12-10,expense
+18,2,10.0,Transport,Maha Mumbai Metro Operation Corporation Limited,2025-12-10,expense
+19,1,50.0,Gifts & Donations,,2025-12-10,expense
+20,2,98.0,Transport,auto morning ,2025-12-11,expense
+21,2,134.0,Food & Dining,lunch,2025-12-11,expense
+22,2,10.0,Transport,Maha Mumbai Metro Operation Corporation Limited,2025-12-11,expense
+25,1,30.0,Food & Dining,Milk purchase,2025-12-11,expense
+26,1,60.0,Education,Sumit Dixit [#eb70aeef892bc4b5],2025-12-10,expense
+27,1,20.0,Food & Dining,BABLU [#9910e5e97a0f76db],2025-12-07,expense
+32,2,50.0,Transport,Rapido [#e055342a5bfe06d4],2025-12-12,expense
+33,2,134.0,Food & Dining,office lunch,2025-12-12,expense
+34,2,10.0,Transport,Maha Mumbai Metro Operation Corporation Limited [#855a0abb2b7db9c5],2025-12-12,expense
+35,2,3000.0,Shopping,jess,2025-12-13,expense
+36,2,1000.0,Home & Garden,MAMTA [#6a52691533e6ce6e],2025-12-13,expense
+37,2,112.0,Transport,Ashokkum [#bca446afdad03f46],2025-12-13,expense
+38,2,817.0,Food,Miya Kebabs Fort [#b76d999c2309a693],2025-12-14,expense
+39,1,20.0,Food & Dining,Milk purchase,2025-12-14,expense
+40,2,134.0,Food & Dining,A B SAKH [#f9f8f97f3348ba43],2025-12-14,expense
+41,5,10.0,Bills & Utilities,Zesa,2025-12-16,expense
+42,2,157.0,Food & Dining,Zepto [#108d71a74736f9f5],2025-12-15,expense
+43,2,5455.01,Shopping,Westside [#5ee59a9ea756a36f],2025-12-15,expense
+44,2,50.0,Other,sumit-479@ptyes [#39f99bc3134b2b31],2025-12-14,expense
+45,2,200.0,Other,UPI-571436591262-RASHEED [#6a0acfa20ca6e6fb],2025-12-14,expense
+46,2,170.0,Other,SALIM [#6683579a0528a8f5],2025-12-14,expense
+47,2,840.0,Food,Smoke [#7d810d3dc7aface5],2025-12-14,expense
+48,2,1.0,Other,PANKAJ KUMAR [#7405a0d00500ce1e],2025-12-16,expense
+49,2,134.0,Food & Dining,pffice lunch,2025-12-16,expense
+50,2,134.0,Food & Dining,lunch,2025-12-17,expense
+51,2,83.0,Transport,KANCHAM SAH [#535ed24efee96c0c],2025-12-18,expense
+52,2,10.0,Transport,Maha Mumbai Metro Operation Corporation Limited [#745e58e462ada6a5],2025-12-18,expense

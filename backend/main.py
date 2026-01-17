@@ -15,6 +15,7 @@ from secrets import token_urlsafe
 from urllib.parse import quote
 from sqlalchemy.pool import NullPool
 from sqlalchemy import DateTime
+from datetime import date
 
 
 import hashlib
@@ -225,11 +226,10 @@ class ExpenseUpdate(BaseModel):
 
 class ExpenseResponse(BaseModel):
     id: int
-    user_id: int
     amount: float
     category: str
-    description: str
-    date: str
+    description: Optional[str] = None
+    date: date
     type: str
     
     class Config:
