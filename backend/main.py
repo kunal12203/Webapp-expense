@@ -13,6 +13,8 @@ from typing import Optional, List
 from dotenv import load_dotenv
 from secrets import token_urlsafe
 from urllib.parse import quote
+from sqlalchemy.pool import NullPool
+
 import hashlib
 import os
 import smtplib
@@ -84,13 +86,9 @@ if DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=0,   # IMPORTANT: no overflow with PgBouncer
-    pool_timeout=30,
+    poolclass=NullPool,   # 🔥 THIS IS THE FIX
     echo=False,
-
-    )
+)
 
 print(f"📍 Database: {DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'sqlite'}")
 
