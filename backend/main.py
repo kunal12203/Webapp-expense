@@ -65,15 +65,41 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", os.getenv("SMTP_USER", "noreply@expensetrac
 FROM_NAME = os.getenv("FROM_NAME", "Expense Tracker")
 EMAIL_ENABLED = bool(SMTP_USER and SMTP_PASSWORD)
 
-# Fix for Render/Supabase postgres:// vs postgresql://
+
+# Fix postgres:// to postgresql:// for SQLAlchemy
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Create engine
+# Optimize for Supabase
+if "supabase.com" in DATABASE_URL:
+    # Use Session Pooler for better Render compatibility
+    if "?" not in DATABASE_URL:
+        DATABASE_URL += "?sslmode=require"
+    
+    print("🔧 Using Supabase with optimized settings")
+
+# Create engine with proper configuration
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,  # Verify connections before using
+        pool_recycle=300,  # Recycle connections every 5 minutes
+        pool_size=5,  # Smaller pool for Render free tier
+        max_overflow=10,
+        pool_timeout=30,
+        connect_args={
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        },
+        echo=False  # Set to True for SQL debugging
+    )
+
+print(f"📍 Database: {DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'sqlite'}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
