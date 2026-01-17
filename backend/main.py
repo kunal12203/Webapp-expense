@@ -88,9 +88,12 @@ if DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
     DATABASE_URL,
-    poolclass=NullPool,   # 🔥 THIS IS THE FIX
-    echo=False,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
+    pool_recycle=300,
 )
+
 
 print(f"📍 Database: {DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'sqlite'}")
 
