@@ -96,6 +96,7 @@ print(f"📍 Database: {DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATAB
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+Base.metadata.schema = "public"
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
