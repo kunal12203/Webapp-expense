@@ -1534,39 +1534,43 @@ def get_category_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get usage statistics for each category"""
-    categories = db.query(Category).filter(
-        Category.user_id == current_user.id
-    ).all()
-    
+    # 1. Aggregate directly from expenses (SOURCE OF TRUTH)
+    expense_stats = (
+        db.query(
+            Expense.category.label("category"),
+            func.count(Expense.id).label("expense_count"),
+            func.sum(Expense.amount).label("total_amount"),
+        )
+        .filter(
+            Expense.user_id == current_user.id,
+            Expense.type == "expense"
+        )
+        .group_by(Expense.category)
+        .all()
+    )
+
+    # 2. Fetch user categories for enrichment (OPTIONAL)
+    categories = {
+        c.name: c
+        for c in db.query(Category)
+        .filter(Category.user_id == current_user.id)
+        .all()
+    }
+
+    # 3. Merge safely
     stats = []
-    for category in categories:
-        expense_count = db.query(Expense).filter(
-            Expense.user_id == current_user.id,
-            Expense.category == category.name,
-            Expense.type == "expense"  # Only count expenses, not income
-        ).count()
-        
-        total_amount = db.query(Expense).filter(
-            Expense.user_id == current_user.id,
-            Expense.category == category.name,
-            Expense.type == "expense"  # Only sum expenses, not income
-        ).with_entities(
-            func.sum(Expense.amount)
-        ).scalar() or 0
-        
+    for category, count, total in expense_stats:
+        cat = categories.get(category)
+
         stats.append({
-            "category": category.name,
-            "color": category.color,
-            "icon": category.icon,
-            "expense_count": expense_count,
-            "total_amount": float(total_amount),
-            "can_delete": expense_count == 0 and category.name != "Income"  # Income category can't be deleted
+            "category": category,
+            "color": cat.color if cat else "#999999",
+            "icon": cat.icon if cat else "📦",
+            "expense_count": count,
+            "total_amount": float(total),
+            "can_delete": count == 0 and category != "Income",
         })
-    
-    # Filter out categories with 0 expenses for the chart
-    stats = [s for s in stats if s["total_amount"] > 0]
-    
+
     return stats
 
 # ==========================================
