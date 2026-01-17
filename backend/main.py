@@ -99,7 +99,7 @@ class User(Base):
     date_of_birth = Column(Date, nullable=True)
     occupation = Column(String, nullable=True)
     monthly_budget = Column(Float, nullable=True)
-    onboarding_completed = Column(bool, default=False)  # SQLite uses 0/1 for boolean
+    onboarding_completed = Column(Boolean, default=False)  # SQLite uses 0/1 for boolean
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
