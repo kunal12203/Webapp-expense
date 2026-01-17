@@ -1560,7 +1560,7 @@ def get_category_stats(
     # 3. Merge safely
     stats = []
     for category, count, total in expense_stats:
-        cat = categories.get(category)
+        cat = categories.get(normalize(category))
 
         stats.append({
             "category": category,
