@@ -83,20 +83,13 @@ if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
     engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,  # Verify connections before using
-        pool_recycle=300,  # Recycle connections every 5 minutes
-        pool_size=5,  # Smaller pool for Render free tier
-        max_overflow=10,
-        pool_timeout=30,
-        connect_args={
-            "connect_timeout": 10,
-            "keepalives": 1,
-            "keepalives_idle": 30,
-            "keepalives_interval": 10,
-            "keepalives_count": 5,
-        },
-        echo=False  # Set to True for SQL debugging
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=0,   # IMPORTANT: no overflow with PgBouncer
+    pool_timeout=30,
+    echo=False,
+
     )
 
 print(f"📍 Database: {DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'sqlite'}")
@@ -184,7 +177,7 @@ class Category(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Create tables
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 # ==========================================
 # PYDANTIC MODELS
@@ -340,7 +333,8 @@ class CategoryMigrateResponse(BaseModel):
 
 class ExampleCategory(Base):
     __tablename__ = "example_categories"
-    
+    __table_args__ = {"schema": "public"}  # 🔥 THIS FIXES IT
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False, unique=True)
     icon = Column(String(50), nullable=False)
