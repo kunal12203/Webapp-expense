@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from secrets import token_urlsafe
 from urllib.parse import quote
 from sqlalchemy.pool import NullPool
+from sqlalchemy import DateTime
+
 
 import hashlib
 import os
@@ -131,11 +133,13 @@ class User(Base):
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     token = Column(String, unique=True, index=True)
-    created_at = Column(Date, default=datetime.utcnow)
-    expires_at = Column(Date)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
     used = Column(Integer, default=0)
 
 class PendingTransaction(Base):
