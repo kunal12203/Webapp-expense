@@ -453,6 +453,11 @@ def get_current_user(
     
     return user
 
+def normalize(value: str | None) -> str | None:
+    if not value:
+        return None
+    return value.strip().lower()
+
 # ✅ NEW: Create Default Categories Helper
 def create_default_categories(db: Session, user_id: int):
     """Create default categories for a new user"""
@@ -479,28 +484,37 @@ def create_default_categories(db: Session, user_id: int):
     db.commit()
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
-    """Send email via SMTP"""
-    if not EMAIL_ENABLED:
-        print(f"⚠️ Email not configured. Would send to {to_email}: {subject}")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+
+    if not RESEND_API_KEY:
+        print("❌ RESEND_API_KEY not configured")
         return False
-    
+
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
-        msg["To"] = to_email
-        
-        html_part = MIMEText(html_body, "html")
-        msg.attach(html_part)
-        
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-        
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": f"{FROM_NAME} <{FROM_EMAIL}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body,
+            },
+            timeout=10,
+        )
+
+        if resp.status_code >= 400:
+            print("❌ Resend error:", resp.text)
+            return False
+
+        print("✅ Email sent via Resend")
         return True
+
     except Exception as e:
-        print(f"❌ Failed to send email: {str(e)}")
+        print("❌ Resend exception:", str(e))
         return False
 
 # ==========================================
@@ -612,6 +626,12 @@ def parse_csv_file(file_content: bytes) -> List[dict]:
         })
     
     return expenses
+
+def normalize(name: str | None) -> str | None:
+    if not name:
+        return None
+    return name.strip().lower()
+
 
 def parse_excel_file(file_content: bytes) -> List[dict]:
     """Parse Excel file and return list of expense dicts"""
