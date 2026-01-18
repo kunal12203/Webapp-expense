@@ -485,35 +485,44 @@ def create_default_categories(db: Session, user_id: int):
     db.commit()
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
-    try:
-        resp = requests.post(
-            "https://api.brevo.com/v3/smtp/email",
-            headers={
-                "api-key": os.getenv("BREVO_API_KEY"),
-                "Content-Type": "application/json",
-            },
-            json={
-                "sender": {
-                    "email": FROM_EMAIL,
-                    "name": FROM_NAME,
-                },
-                "to": [{"email": to_email}],
-                "subject": subject,
-                "htmlContent": html_body,
-            },
-            timeout=10,
-        )
+    BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
-        if resp.status_code >= 400:
-            print("❌ Brevo error:", resp.text)
+    if not BREVO_API_KEY:
+        print("❌ BREVO_API_KEY not set")
+        return False
+
+    url = "https://api.brevo.com/v3/smtp/email"
+
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "api-key": BREVO_API_KEY,  # ✅ THIS IS REQUIRED
+    }
+
+    payload = {
+        "sender": {
+            "name": FROM_NAME,
+            "email": FROM_EMAIL
+        },
+        "to": [
+            {"email": to_email}
+        ],
+        "subject": subject,
+        "htmlContent": html_body
+    }
+
+    try:
+        res = requests.post(url, json=payload, headers=headers)
+
+        if res.status_code >= 400:
+            print("❌ Brevo error:", res.text)
             return False
 
         return True
 
     except Exception as e:
-        print("❌ Brevo exception:", e)
+        print("❌ Email send failed:", str(e))
         return False
-
 # ==========================================
 # EXPORT/IMPORT HELPER FUNCTIONS
 # ==========================================
