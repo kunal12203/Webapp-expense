@@ -26,6 +26,7 @@ from email.mime.multipart import MIMEMultipart
 import io
 import csv
 
+
 # Load environment variables FIRST before importing custom modules
 load_dotenv()
 
@@ -484,30 +485,34 @@ def create_default_categories(db: Session, user_id: int):
     db.commit()
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
-    if not EMAIL_ENABLED:
-        print("⚠️ Email disabled")
-        return False
-
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
-        msg["To"] = to_email
+        resp = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": os.getenv("BREVO_API_KEY"),
+                "Content-Type": "application/json",
+            },
+            json={
+                "sender": {
+                    "email": FROM_EMAIL,
+                    "name": FROM_NAME,
+                },
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html_body,
+            },
+            timeout=10,
+        )
 
-        msg.attach(MIMEText(html_body, "html"))
+        if resp.status_code >= 400:
+            print("❌ Brevo error:", resp.text)
+            return False
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-
-        print(f"✅ Email sent to {to_email}")
         return True
 
     except Exception as e:
-        print(f"❌ Email send failed: {e}")
+        print("❌ Brevo exception:", e)
         return False
-
 
 # ==========================================
 # EXPORT/IMPORT HELPER FUNCTIONS
