@@ -44,6 +44,14 @@ import json
 
 from fastapi.responses import RedirectResponse
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,  # change to DEBUG when needed
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+
+logger = logging.getLogger("expense-tracker")
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-PLEASE")
 ALGORITHM = "HS256"
@@ -665,39 +673,15 @@ def parse_excel_file(file_content: bytes) -> List[dict]:
     return expenses
 
 def get_splitwise_auth_header(user: User, db: Session) -> dict:
-  if not user.splitwise_access_token:
-      raise HTTPException(status_code=400, detail="Splitwise not connected")
+    if not user.splitwise_access_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Splitwise not connected. Please connect your account."
+        )
 
-  # refresh if expired
-  if user.splitwise_token_expires_at:
-      now = datetime.utcnow()
-      # Handle both timezone-aware and naive datetimes
-      expires_at = user.splitwise_token_expires_at
-      if hasattr(expires_at, 'tzinfo') and expires_at.tzinfo is not None:
-          # expires_at is timezone-aware, make now timezone-aware too
-          from datetime import timezone
-          now = datetime.now(timezone.utc)
-      
-      if expires_at < now:
-          token_url = f"{SPLITWISE_BASE_URL}/oauth/token"
-          data = {
-              "grant_type": "refresh_token",
-              "refresh_token": user.splitwise_refresh_token,
-              "client_id": SPLITWISE_CLIENT_ID,
-              "client_secret": SPLITWISE_CLIENT_SECRET,
-          }
-          resp = requests.post(token_url, data=data)
-          if resp.status_code != 200:
-              raise HTTPException(status_code=400, detail="Failed to refresh Splitwise token")
-
-          tokens = resp.json()
-          user.splitwise_access_token = tokens["access_token"]
-          user.splitwise_refresh_token = tokens.get("refresh_token", user.splitwise_refresh_token)
-          expires_in = tokens.get("expires_in", 3600)
-          user.splitwise_token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-          db.commit()
-
-  return {"Authorization": f"Bearer {user.splitwise_access_token}"}
+    return {
+        "Authorization": f"Bearer {user.splitwise_access_token}"
+    }
 
 
 
@@ -862,8 +846,26 @@ def sync_today(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    imported = sync_splitwise_for_user(db, current_user, mode="today")
-    return {"imported": imported}
+    logger.info(f"Splitwise sync-today triggered by user={current_user.username}")
+
+    try:
+        imported = sync_splitwise_for_user(db, current_user, mode="today")
+        logger.info(
+            f"Splitwise sync-today success | user={current_user.username} | imported={imported}"
+        )
+        return {"imported": imported}
+
+    except HTTPException as e:
+        logger.warning(
+            f"Splitwise sync-today failed | user={current_user.username} | {e.detail}"
+        )
+        raise
+
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error in sync-today | user={current_user.username}"
+        )
+        raise HTTPException(status_code=500, detail="Internal sync error")
 
 @app.post("/api/splitwise/sync-all-user")
 def sync_all_user(
