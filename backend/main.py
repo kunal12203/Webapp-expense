@@ -484,38 +484,30 @@ def create_default_categories(db: Session, user_id: int):
     db.commit()
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
-    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-
-    if not RESEND_API_KEY:
-        print("❌ RESEND_API_KEY not configured")
+    if not EMAIL_ENABLED:
+        print("⚠️ Email disabled")
         return False
 
     try:
-        resp = requests.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "from": f"{FROM_NAME} <{FROM_EMAIL}>",
-                "to": [to_email],
-                "subject": subject,
-                "html": html_body,
-            },
-            timeout=10,
-        )
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
+        msg["To"] = to_email
 
-        if resp.status_code >= 400:
-            print("❌ Resend error:", resp.text)
-            return False
+        msg.attach(MIMEText(html_body, "html"))
 
-        print("✅ Email sent via Resend")
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        print(f"✅ Email sent to {to_email}")
         return True
 
     except Exception as e:
-        print("❌ Resend exception:", str(e))
+        print(f"❌ Email send failed: {e}")
         return False
+
 
 # ==========================================
 # EXPORT/IMPORT HELPER FUNCTIONS
